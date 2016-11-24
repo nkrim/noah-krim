@@ -1,0 +1,7 @@
+{
+  "name": "noah-krim",
+  "short_name": "noah-krim",
+  "description": "Personal resume site for Noah Krim",
+  "start_url": "/",
+  "display": "standalone"
+}
