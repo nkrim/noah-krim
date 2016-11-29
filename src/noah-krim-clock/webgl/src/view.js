@@ -4,42 +4,55 @@
 */
 
 (function(clockgl, $, undefined) {
-	clockgl.initShaders = function(gl, vertexShader, fragmentShader) {
-		// Load the shaders
-		var vsh = loadShader(gl, vertexShader, gl.VERTEX_SHADER);
-		if(!vsh)
-			return null;
-		var fsh = loadShader(gl, fragmentShader, gl.FRAGMENT_SHADER);
-		if(!vsh)
-			return null;
 
-		// Create the shader program	
-		var shaderProgram = gl.createProgram();
-		gl.attachShader(shaderProgram, vsh);
-		gl.attachShader(shaderProgram, fsh);
-		gl.linkProgram(shaderProgram);
+	clockgl.drawScene = function(gl, sceneObjs, posLoc, colLoc, uniforms, wUniform) {
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-		// If creating the shader program failed, return null
-		if(!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-			console.log('Failed to create shader program: '+gl.getProgramInfoLog(shaderProgram));
-			return null;
-		}
-
-		// On success, return shaderProgram
-		return shaderProgram;
-	}
-
-	function loadShader(gl, shader, shaderType) {
-		var shader = null;
-		$.get(vertexShader, function(data) {
-			shader = gl.createShader(shaderType);
-			gl.shaderSource(shader, data);
-			gl.compileShader(shader);
-			if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-				console.log('An error occurred compiling the shaders: '+gl.getShaderInfoLog(shader));
-				shader = null;
-			}
+		$.each(sceneObjs, function(key, obj) {
+			obj.draw(gl, posLoc, colLoc, uniforms, wUniform);
 		});
-		return shader;
 	}
+
+	clockgl.setUniforms = function(gl, uniforms) {
+		$.each(uniforms, function(key, uniform) {
+			uniform.set(gl);
+		});
+	}
+
+	clockgl.initShaderProgram = function(gl, vertexShader, fragmentShader) {
+		// Load the shaders
+		var vshD = getShader(gl, vertexShader, gl.VERTEX_SHADER);
+		var fshD = getShader(gl, fragmentShader, gl.FRAGMENT_SHADER);
+		return $.when(vshD, fshD)
+			.then(function(vsh, fsh) {
+				// Create the shader program	
+				var shaderProgram = gl.createProgram();
+				gl.attachShader(shaderProgram, vsh);
+				gl.attachShader(shaderProgram, fsh);
+				gl.linkProgram(shaderProgram);
+				// If creating the shader program failed, reject
+				if(!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+					return $.Deferred().reject('Failed to create shader program: '+gl.getProgramInfoLog(shaderProgram));
+				}
+				// On success, return shaderProgram
+				return shaderProgram;
+			});
+	}
+
+	function getShader(gl, shaderLoc, shaderType) {
+		return $.get(shaderLoc)
+			.then(function(data) {
+				// Create and compile the shader
+				var shader = gl.createShader(shaderType);
+				gl.shaderSource(shader, data);
+				gl.compileShader(shader);
+				// If compiling the shader failed, reject
+				if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+					return $.Deferred().reject('An error occurred compiling the shaders: '+gl.getShaderInfoLog(shader));
+				}
+				// On success, return shader
+				return shader;
+			});
+	}
+	
 }(window.clockgl = window.clockgl || {}, jQuery));

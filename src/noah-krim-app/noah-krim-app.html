@@ -1,27 +1,27 @@
 <link rel="import" href="../../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../noah-krim-clock/noah-krim-clock.html">
+
 <dom-module id="noah-krim-app">
-  <template>
-    <style>
-      :host {
-        display: block;
-      }
-    </style>
-    <h2>Hello [[prop1]]</h2>
-  </template>
+	<template>
+		<style>
+			:host {
+				display: block;
+			}
+		</style>
 
-  <script>
-    Polymer({
+		<h2>Hello</h2>
+		<noah-krim-clock id="clock"></noah-krim-clock>
 
-      is: 'noah-krim-app',
+	</template>
 
-      properties: {
-        prop1: {
-          type: String,
-          value: 'noah-krim-app',
-        },
-      },
+	<script>
+		Polymer({
+			is: 'noah-krim-app',
 
-    });
-  </script>
+			attached: function() {
+				this.$.clock.start();
+			},
+		});
+	</script>
 </dom-module>

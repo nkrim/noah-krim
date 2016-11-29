@@ -64,7 +64,7 @@ def parse(file):
 			if len(split) < vlen:
 				raise ParseError(ParseError.TOO_FEW_VERTEX, lineno)
 			try:
-				obj['vertices'] += [float(split[i]) for i in range(1,vlen)]
+				obj['vertices'] += [[float(split[i]) for i in range(1,vlen)]]
 			except ValueError:
 				raise ParseError(ParseError.FLOAT_VALUE_ERROR, lineno)
 		elif split[0] == 'f':
@@ -73,7 +73,7 @@ def parse(file):
 			if len(split) < ilen:
 				raise ParseError(ParseError.TOO_FEW_INDEX, lineno)
 			try:
-				obj['indices'] += [int(split[i]) for i in range(1,ilen)]
+				obj['indices'] += [[int(split[i].split('//')[0]) for i in range(1,ilen)]]
 			except ValueError:
 				raise ParseError(ParseError.INT_VALUE_ERROR, lineno)
 	if obj:
@@ -96,6 +96,9 @@ class ParseError(RuntimeError):
 	def __init__(self, reason, lineno):
 		self.reason = reason
 		self.lineno = lineno
+
+	def __str__(self):
+		return 'line %s: %s' % (self.lineno, self.reason)
 
 if __name__ == '__main__':
 	main()
