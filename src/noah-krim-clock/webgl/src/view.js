@@ -5,17 +5,11 @@
 
 (function(clockgl, $, undefined) {
 
-	clockgl.drawScene = function(gl, sceneObjs, posLoc, colLoc, uniforms, wUniform) {
+	clockgl.drawScene = function(gl, models, attributes, uniforms, worldUniform) {
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-		$.each(sceneObjs, function(key, obj) {
-			obj.draw(gl, posLoc, colLoc, uniforms, wUniform);
-		});
-	}
-
-	clockgl.setUniforms = function(gl, uniforms) {
-		$.each(uniforms, function(key, uniform) {
-			uniform.set(gl);
+		$.each(models, function(key, model) {
+			model.draw(gl, attributes, uniforms, worldUniform);
 		});
 	}
 

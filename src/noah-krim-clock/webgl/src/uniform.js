@@ -7,13 +7,14 @@
 
 	/** Uniform object - Matrix4Float32 (default)
 	========================================	*/
-	var Uniform = function(loc, val) {
+	var Uniform = function(gl, loc, val, method) {
 		this.loc = loc;
 		this.val = val;
+		this.method = gl.uniformMatrix4fv;
 	}
 
-	Uniform.prototype.set = function(gl) {
-		gl.uniformMatrix4fv(this.loc, false, new Float32Array(this.val.flatten()));
+	Uniform.prototype.set = function() {
+		this.method(this.loc, false, new Float32Array(this.val.flatten()));
 	}
 
 	// Export Uniform
