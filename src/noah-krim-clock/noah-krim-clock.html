@@ -8,11 +8,6 @@
 			:host {
 				display: block;
 			}
-
-			#canvas {
-				height: 480px;
-				width: 640px;
-			}
 		</style>
 
 		<canvas id="canvas"></canvas>
@@ -22,11 +17,51 @@
 		Polymer({
 			is: 'noah-krim-clock',
 
+			properties: {
+				width: {
+					type: Number,
+					value: 640,
+				},
+
+				height: {
+					type: Number,
+					value: 480,
+				}
+			},
+
+			observers: [
+				'_observeDimensions(width,height)',
+			],
+
+			ready: function() {
+				this.isReady = true;
+				this.setCanvasDimensions();
+			},
+
 			/** 
 				Public functions
 			*/
 			start: function() {
 				clockgl.start(this.$.canvas);
+			},
+
+			setCanvasDimensions: function() {
+				var widthpx = this.width+'px';
+				var heightpx = this.height+'px';
+				var canvas = this.$.canvas;
+				canvas.setAttribute('width', widthpx);
+				canvas.setAttribute('height', heightpx);
+				canvas.style.width = widthpx;
+				canvas.style.height = heightpx;
+			},
+
+			/**
+				Observer functions
+			*/
+			_observeDimensions: function(width, height) {
+				if(!this.isReady)
+					return;
+				this.setCanvasDimensions();
 			},
 		});
 	</script>

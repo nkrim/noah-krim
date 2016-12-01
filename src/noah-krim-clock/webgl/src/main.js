@@ -7,6 +7,9 @@
 
 	/** Preset variables
 	============================	*/
+	/** Debug
+	----------------------------	*/
+	var DEBUG = true;
 	/** Context
 	----------------------------	*/
 	var BASE = '/src/noah-krim-clock/webgl';	// Base URL
@@ -14,7 +17,7 @@
 	----------------------------	*/
 	var meshesSrcDef = {	// Meshes source definition (key: name, value: {src[, type=Mesh][, usage=STATIC_DRAW]})
 		line: {
-			src: BASE+'/data/line.json',
+			src: BASE+'/data/line.obj',//.json',
 			type: clockgl.Mesh,
 		},
 	};
@@ -23,7 +26,7 @@
 	var modelsDef = {		// Models definition (key: name, value: {mesh[, color=white][, world=identity]})
 		line0: {
 			mesh: 'line',
-			world: Matrix.I(4).multiply(0.1),
+			world: $V([0.1,0.1,0.1]),
 		},
 	}
 	/** View
@@ -33,9 +36,11 @@
 	var aspect = 640.0/480.0;
 	var znear = 0.1
 	var zfar = 500.0
-	var modelViewLookAt = $M([   0.0,   5.0,  25.0,
-		                         0.0,   5.0,   0.0,
-		                         0.0,   1.0,   0.0]);
+	/** Camera initials
+	----------------------------	*/
+	var cam_pos = $V([5.0, 5.0, 25.0]);
+	var cam_look = $V([0.0, 5.0, 0.0]);
+	var cam_up = $V([0.0, 1.0, 0.0]);
 	/** Shader definition
 	----------------------------	*/
 	var vertexShaderSrc = '/src/noah-krim-clock/webgl/shaders/shader.vsh';
@@ -51,6 +56,9 @@
 	/** Shader programs
 	----------------------------	*/
 	var shaderProgram;
+	/** Camera
+	----------------------------	*/
+	var camera;
 	/** Model/SceneObj variables
 	----------------------------	*/
 	var meshes;
@@ -82,8 +90,10 @@
 		if (gl) {
 			gl.clearColor.apply(gl, background.flatten());  // Clear to background, fully opaque
 			gl.clearDepth(1.0);                 // Clear everything
-			//gl.enable(gl.DEPTH_TEST);           // Enable depth testing
+			gl.enable(gl.DEPTH_TEST);           // Enable depth testing
 			gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
+			gl.enable(gl.CULL_FACE);			// Enable face culling
+			gl.cullFace(gl.BACK);				// Cull backs
 
 			// Shaders deferred actions
 			var shaderDeferred = clockgl.initShaderProgram(gl, vertexShaderSrc, fragmentShaderSrc)
@@ -109,24 +119,28 @@
 
 					// Get uniform locations
 					uniforms = {};
-					uniforms.perspective = new clockgl.Uniform(gl.getUniformLocation(shaderProgram, 'perspective'), perspective);
-					uniforms.modelView = new clockgl.Uniform(gl.getUniformLocation(shaderProgram, 'modelView'), modelView);
+					uniforms.perspective = clockgl.uniformFromProgram(gl, clockgl.UNIFORM.MAT4F, shaderProgram, 'perspective', perspective);
+					uniforms.modelView = clockgl.uniformFromProgram(gl, clockgl.UNIFORM.MAT4F, shaderProgram, 'modelView', modelView);
 					// Get world uniform location
 					worldUniform = gl.getUniformLocation(shaderProgram, 'world');
+					console.log(uniforms);
 				});
 
 			// Meshes/Models deferred actions
-			var meshesDeferred = clockgl.loadMeshes(gl, meshesSrcDef)
-				.done(function(m) {
+			//var meshesDeferred = clockgl.loadMeshes(gl, meshesSrcDef)
+			var meshesDeferred = clockgl.loadMeshesFromLoader(gl, 
+					clockgl.mapObj(meshesSrcDef, function(opt) {
+						return opt.src;
+					})
+				).done(function(m) {
 					// Set the models dictionary
 					meshes = m;
 					console.log(meshes);
 
 					// Construct models from modelsDef
-					models = $.map(modelsDef, function(opt, name) {
+					models = clockgl.mapObj(modelsDef, function(opt) {
 						return new clockgl.Model(gl, meshes[opt.mesh], opt.color, opt.world);
 					});
-					console.log(models);
 
 					// Construct axes
 					models.xaxis = clockgl.lineModel(gl, $V([0.0, 0.0, 0.0]), $V([100.0, 0.0, 0.0]), $V([1.0, 0.0, 0.0]));
@@ -137,6 +151,21 @@
 
 			// When shaders and models are done...
 			$.when(shaderDeferred, meshesDeferred)
+				.always(function() {
+					// Export important variables if debug is true
+					if(DEBUG) {
+						console.log('Debug is on, exporting variables')
+						clockgl.canvas = canvas;
+						clockgl.gl = gl;
+						clockgl.shaderProgram = shaderProgram;
+						clockgl.perspective = perspective;
+						clockgl.modelView = modelView;
+						clockgl.attributes = attributes;
+						clockgl.uniforms = uniforms;
+						clockgl.meshes = meshes;
+						clockgl.models = models;
+					}
+				})
 				.done(function() {
 					// Set to update the scene periodically.
 					runInterval = setInterval(updateScene, 15);
@@ -160,8 +189,11 @@
 
 		var canvasElement = canvas;
 
+
+
 		canvas 			= undefined;
 		gl 				= undefined;
+		camera 			= undefined;
 		shaderProgram 	= undefined;
 		meshes 			= undefined;
 		models 			= undefined;

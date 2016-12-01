@@ -18,7 +18,7 @@
 			start = start.flatten();
 		if(end instanceof Vector)
 			end = end.flatten(); 
-		return new Model(gl, new clockgl.LinesMesh(gl, [start, end]), color, world);
+		return new Model(gl, new clockgl.LinesMesh(gl, clockgl.dechunk([start, end])), color, world);
 	}
 
 
@@ -30,11 +30,11 @@
 		// Set color (default is white)
 		this.setColor(gl, color || [1.0, 1.0, 1.0, 1.0]);
 		// Set world matrix (default is identity)
-		this.world = world || Matrix.I(4);
+		this.world = world || $V([1,1,1]);
 	}
 	/** Properties
 	----------------	*/
-	Object.defineProperty(Model, 'color', { get: function() { return this._color }});
+	Object.defineProperty(Model.prototype, 'color', { get: function() { return this._color }});
 	/** Color helpers
 	--------------------	*/
 	Model.prototype.setColor = function(gl, color, drawMethod) {
@@ -95,7 +95,7 @@
 	----------------	*/
 	Model.prototype.draw = function(gl, attributes, uniforms, worldUniform) {
 		// Copy uniforms dict and add world uniform
-		uniforms = $.extend({}, uniforms, {'world': new clockgl.Uniform(worldUniform, this.world)});
+		uniforms = $.extend({}, uniforms, {world: new clockgl.Uniform(gl, clockgl.UNIFORM.VEC3F, worldUniform, this.world)});
 		// Draw model's mesh
 		this.mesh.draw(gl, attributes, uniforms, this.cbuf);
 	}

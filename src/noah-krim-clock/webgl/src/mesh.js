@@ -12,11 +12,20 @@
 	var Mesh;					// Standard triangle mesh with index buffer
 	var LinesMesh;				// Mesh representing a single line
 
-
 	/** Mesh loading
 	================	*/
 	/** Mesh loading
 	----------------	*/
+	clockgl.loadMeshesFromLoader = function(gl, nameAndUrls) {
+		var d = $.Deferred();
+		OBJ.downloadMeshes(nameAndUrls, function(meshes) {
+			meshes = clockgl.mapObj(meshes, function(mesh) {
+				return new Mesh(gl, mesh.vertices, mesh.indices);
+			});
+			d.resolve(meshes);
+		});
+		return d;
+	}
 	clockgl.loadMesh = function(gl, fileUrl, meshType, usage) {
 		return $.getJSON(fileUrl)
 			.then(function(data) {
@@ -32,7 +41,7 @@
 			});
 	}
 	clockgl.loadMeshes = function(gl, meshesSrcDef) {
-		// Load all meshes and get their deferred objects, transformed to objects with a name and a mesh
+		// Load all meshes and get their deferred objects, transformed to singleton objects with its name as the key with the mesh as its value
 		var deferredMeshes = $.map(meshesSrcDef, function(opt, name) {
 			return clockgl.loadMesh(gl, opt.src, opt.type || Mesh, opt.usage)
 				.then(function(mesh) {
@@ -55,41 +64,46 @@
 
 	/** Abstract Mesh
 	====================	*/
-	AbstractMesh = function(gl, vertices, usage, mode) {
+	AbstractMesh = function(gl, vertices, normals, usage, mode) {
+		// Set vertices and normals
+		this.vertices = vertices;
+		this.normals = normals;
 		// Default value for `this.vlength` using the `AbstractMesh.prototype.getVerticesLength()` method
-		this.vlength = this.getVerticesLength(vertices);
+		this.vlength = vertices.length/3;
 		// Default value for `this.length` using the `AbsractMesh.prototype.getLength()` method which is supplied all arguments the constructor is supplied, should be overridden
 		this.length = this.getLength.apply(this, arguments);
 		// Set `this.mode` if present, or default to gl.TRIANGLES
 		this.mode = typeof(mode) === 'number' ? mode : gl.TRIANGLES;
 
-		// Transform `vertices` to a Float32Array with overridden `AbstractMesh.prototype.verticesToArray()` method, default implementation is for an array of arrays
-		var vertexArray = this.verticesToArray(vertices);
-
 		// Create vertex buffer
 		this.vbuf = gl.createBuffer();
 		// Load vertex buffer
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vbuf);
-		gl.bufferData(gl.ARRAY_BUFFER, vertexArray, usage || gl.STATIC_DRAW)
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), usage || gl.STATIC_DRAW);
+
+		// Create normal buffer
+		this.nbuf = gl.createBuffer();
+		// Load normal buffer
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.nbuf);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), usage || gl.STATIC_DRAW);
 	}
 	/** Constructor helpers
 	------------------------	*/
-	// Gets vertices length, which is used both for generating color buffers, and for setting mesh length, in some cases
-	AbstractMesh.prototype.getVerticesLength = function(vertices) {
-		return vertices.length;
-	}
 	// Arguments are the same as what's given to the constructor (can give extra arguments to parent constructor to make this work)
 	AbstractMesh.prototype.getLength = function() {
 		if(this.vlength)
 			return this.vlength;
 		if(arguments.length > 1) {
 			var vertices = arguments[1];
-			return vertices.length;
+			return vertices.length/3;
 		}
 		return 0;
 	}
-	AbstractMesh.prototype.verticesToArray = function(vertices) {
-		return new Float32Array(Array.prototype.concat.apply([],vertices));
+	/** Deconstructors
+	--------------------	*/
+	AbstractMesh.prototype.deleteBuffers = function() {
+		gl.deleteBuffer(this.vbuf);
+		gl.deleteBuffer(this.nbuf);
 	}
 	/** Draw helpers (arguments should remain constant throughout)
 	----------------------------------------------------------------	*/
@@ -106,9 +120,9 @@
 		gl.vertexAttribPointer(attributes.position, 3, gl.FLOAT, false, 0, 0);
 	}
 	// Loops through uniforms dict and sets each, does not need to be overriden in most cases
-	AbstractMesh.prototype.setUniforms = function(gl, uniforms) {
+	AbstractMesh.prototype.setUniforms = function(uniforms) {
 		$.each(uniforms, function(key, uniform) {
-			uniform.set(gl);
+			uniform.set();
 		});
 	}
 	// Default drawMesh() is to draw triangles from vertex arrays, usually does not need to be overridden
@@ -120,7 +134,7 @@
 		// Bind for draw
 		this.bindForDraw(gl, attributes, cbuf);
 		// Set uniforms
-		this.setUniforms(gl, uniforms);
+		this.setUniforms(uniforms);
 		// Draw mesh
 		this.drawMesh(gl);
 	}
@@ -128,18 +142,15 @@
 
 	/** Abstract Indexed Mesh (AbstractMesh)
 	========================================	*/
-	AbstractIndexedMesh = function(gl, vertices, indices, usage, mode) {
+	AbstractIndexedMesh = function(gl, vertices, normals, indices, usage, mode) {
 		// Inherit from AbstractMesh
-		AbstractMesh.apply(this, [gl, vertices, usage, mode, /*For getLength()*/indices].concat(Array.prototype.splice.call(arguments, 5)));
-
-		// Transform `indices` to a Uint16Array with overridden `AbstractMesh.prototype.indicessToArray()` method, default implementation is for an array of arrays
-		var indexArray = this.indicesToArray(indices);
+		AbstractMesh.apply(this, [gl, vertices, normals, usage, mode, /*For getLength()*/indices].concat(Array.prototype.splice.call(arguments, 6)));
 
 		// Create index buffer
 		this.ibuf = gl.createBuffer();
 		// Load index buffer
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.ibuf);
-		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexArray, usage || gl.STATIC_DRAW);
+		gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), usage || gl.STATIC_DRAW);
 	}
 	/* Inheritance of prototype
 	----------------------------	*/
@@ -148,14 +159,19 @@
 	/** Constructor helpers
 	------------------------	*/
 	AbstractIndexedMesh.prototype.getLength = function() {
-		if(arguments.length > 4) {
-			var indices = arguments[4];
+		if(arguments.length > 5) {
+			var indices = arguments[5];
 			return indices.length;
 		}
 		return 0;
 	}
-	AbstractIndexedMesh.prototype.indicesToArray = function(indices) {
-		return new Uint16Array(Array.prototype.concat.apply([],indices));
+	/** Deconstructors
+	--------------------	*/
+	AbstractIndexedMesh.prototype.deleteBuffers = function() {
+		// Call parents `deleteBuffers()` method
+		AbstractMesh.prototype.deleteBuffers.call(this);
+
+		gl.deleteBuffer(this.ibuf);
 	}
 	/** Draw helpers (arguments should remain constant throughout)
 	----------------------------------------------------------------	*/
@@ -175,7 +191,7 @@
 
 	/**	Default Mesh (AbstractIndexedMesh)
 	========================================	*/
-	Mesh = function(gl, vertices, indices, usage) {
+	Mesh = function(gl, vertices, normals, indices, usage) {
 		// Inherit from AbstractIndexedMesh
 		AbstractIndexedMesh.apply(this, [gl, vertices, indices, usage, gl.TRIANGLES].concat(Array.prototype.splice.call(arguments, 5)));
 	}
