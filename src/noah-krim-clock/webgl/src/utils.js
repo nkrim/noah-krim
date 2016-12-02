@@ -17,6 +17,14 @@
 		return Array.prototype.concat.apply([], arr);
 	}
 
+	clockgl.repeat = function(n, rep) {
+		var ret = [];
+		for(var i=0; i<n; i++) {
+			ret = ret.concat(rep);
+		}
+		return ret;
+	}
+
 	clockgl.mapObj = function(obj, mapper) {
 		return $.extend.apply(this, [{}].concat(
 			$.map(obj, function(val, key) {

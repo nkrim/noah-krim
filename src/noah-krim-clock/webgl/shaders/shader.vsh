@@ -3,16 +3,37 @@
 	author: Noah Krim
 */
 
+/** Vertex attributes
+========================	*/
 attribute vec3 position;
+attribute vec3 normal;
 attribute vec4 color;
 
-uniform mat4 perspective;
+/** Scene uniforms
+========================	*/
+/** Transforms
+------------------------	*/
+uniform mat4 projection;
 uniform mat4 modelView;
 uniform vec3 world;
+/** Camera
+------------------------	*/
+uniform vec3 camPos;
 
+/** Fragment args
+========================	*/
 varying lowp vec4 vColor;
+varying lowp vec3 vNormal;
 
 void main(void) {
-	gl_Position = perspective * modelView * vec4((world * position), 1.0);
+	// Transform vertex and normal
+	vec4 pos = projection * modelView * vec4((camPos - world * position), 1.0);
+	vec3 norm = world * normal;
+
+	// Set position
+	gl_Position = pos;
+
+	// Set fragment shader arguments
 	vColor = color;
+	vNormal = norm;
 }

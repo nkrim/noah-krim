@@ -23,10 +23,13 @@
 	};
 	/** Scene Objects
 	----------------------------	*/
-	var modelsDef = {		// Models definition (key: name, value: {mesh[, color=white][, world=identity]})
+	var modelsDef = {		// Models definition (key: name, value: {mesh[, color=white][, world=identity][, uniformVals]})
 		line0: {
 			mesh: 'line',
 			world: $V([0.1,0.1,0.1]),
+			uniformVals: {
+				''
+			},
 		},
 	}
 	/** View
@@ -46,6 +49,30 @@
 	var vertexShaderSrc = '/src/noah-krim-clock/webgl/shaders/shader.vsh';
 	var fragmentShaderSrc = '/src/noah-krim-clock/webgl/shaders/shader.fsh';
 	var attributeNames = ['position', 'color'];
+	var uniformsLayoutDef = {
+		scene: {
+			projection: 	clockgl.UNIFORM.MAT4F, 
+			modelView: 		clockgl.UNIFORM.MAT4F,
+			camPos: 		clockgl.UNIFORM.VEC3F,
+			diffuse_dir: 	clockgl.UNIFORM.VEC3F,
+			diffuse_col: 	clockgl.UNIFORM.VEC4F,
+			diffuse_int: 	clockgl.UNIFORM.VEC1F,
+		},
+		model: {
+			world: 			clockgl.UNIFORM.VEC3F,
+		},
+		mesh: {
+			diffuse_on: 	clockgl.UNIFORM.VEC1I;
+		},
+	}
+	/** Global lighting
+	----------------------------	*/
+	var lightingDef = {
+		diffuse: {
+			diffuse_dir: , 'diffuse_col', 'diffuse_int'],
+
+		}
+	}
 
 	/**	Private variables
 	============================	*/
@@ -56,24 +83,21 @@
 	/** Shader programs
 	----------------------------	*/
 	var shaderProgram;
-	/** Camera
+	/** View variables
 	----------------------------	*/
 	var camera;
+	var projection;
 	/** Model/SceneObj variables
 	----------------------------	*/
 	var meshes;
 	var models;
-	/** View matrices
-	----------------------------	*/
-	var perspective;
-	var modelView;
 	/** Attribute locations
 	----------------------------	*/
-	var attributes;
-	/** Uniform locations
+	var attributeLocs;
+	/** Uniforms and locations
 	----------------------------	*/
-	var uniforms;
-	var worldUniform;
+	var uniformsLayout; 
+	var sceneUniforms;
 	/** Run instance
 	----------------------------	*/
 	var runInterval;
@@ -95,35 +119,54 @@
 			gl.enable(gl.CULL_FACE);			// Enable face culling
 			gl.cullFace(gl.BACK);				// Cull backs
 
+			// Init camera
+			camera = new clockgl.Camera(cam_pos, cam_look, cam_up);
+
 			// Shaders deferred actions
 			var shaderDeferred = clockgl.initShaderProgram(gl, vertexShaderSrc, fragmentShaderSrc)
-				.done(function(sp) {
-					// Set the shaderProgram
-					shaderProgram = sp;
+				.then(function(sp) {
+					try {
+						// Set the shaderProgram
+						shaderProgram = sp;
 
-					// Initialize the shaders
-					gl.useProgram(shaderProgram);
+						// Initialize the shaders
+						gl.useProgram(shaderProgram);
 
-					// Get and enable attribute locations
-					attributes = {};
-					$.each(attributeNames, function(index, name) {
-						var loc = gl.getAttribLocation(shaderProgram, name);
-						gl.enableVertexAttribArray(loc);
-						attributes[name] = loc;
-					});
-					console.log(attributes);
+						// Get and enable attribute locations
+						attributeLocs = {};
+						$.each(attributeNames, function(index, name) {
+							var loc = gl.getAttribLocation(shaderProgram, name);
+							gl.enableVertexAttribArray(loc);
+							attributeLocs[name] = loc;
+						});
+						console.log(attributes);
 
-					// Create perspective/modelView matrices
-					perspective = makePerspective(fovy, aspect, znear, zfar);
-					modelView = makeLookAt.apply(this, modelViewLookAt.flatten());
+						// Create projection/modelView matrices
+						projection = makeprojection(fovy, aspect, znear, zfar);
 
-					// Get uniform locations
-					uniforms = {};
-					uniforms.perspective = clockgl.uniformFromProgram(gl, clockgl.UNIFORM.MAT4F, shaderProgram, 'perspective', perspective);
-					uniforms.modelView = clockgl.uniformFromProgram(gl, clockgl.UNIFORM.MAT4F, shaderProgram, 'modelView', modelView);
-					// Get world uniform location
-					worldUniform = gl.getUniformLocation(shaderProgram, 'world');
-					console.log(uniforms);
+						// Get uniform locations
+						uniformsLayout = {};
+						$.each(uniformsLayoutDef, function(context, uniformsDef) {
+							uniformsLayout[context] = $.mapObj(uniformsDef, function(name, type) {
+								var loc = gl.getUniformLocation(shaderProgram, name);
+								return new clockgl.Uniform(type, loc);
+							});
+						});
+						var sceneUniformsDef = {
+							projection: projection,
+							modelView: camera.mat,
+							camPos: camera.pos,
+							diffuse_dir: 
+						}
+						sceneUniforms = {};
+						uniformsLayout.projection = clockgl.uniformFromProgram(gl, clockgl.UNIFORM.MAT4F, shaderProgram, 'projection', projection);
+						// Get world uniform location
+						worldUniform = gl.getUniformLocation(shaderProgram, 'world');
+						console.log(uniforms);
+					}
+					catch (e) {
+						return $.Deferred().reject(e);
+					}
 				});
 
 			// Meshes/Models deferred actions
@@ -132,21 +175,27 @@
 					clockgl.mapObj(meshesSrcDef, function(opt) {
 						return opt.src;
 					})
-				).done(function(m) {
-					// Set the models dictionary
-					meshes = m;
-					console.log(meshes);
+				).then(function(m) {
+					try {
+						// Set the models dictionary
+						meshes = m;
+						console.log(meshes);
 
-					// Construct models from modelsDef
-					models = clockgl.mapObj(modelsDef, function(opt) {
-						return new clockgl.Model(gl, meshes[opt.mesh], opt.color, opt.world);
-					});
+						// Construct models from modelsDef
+						models = clockgl.mapObj(modelsDef, function(opt) {
+							return new clockgl.Model(gl, meshes[opt.mesh], opt.color, opt.world);
+						});
 
-					// Construct axes
-					models.xaxis = clockgl.lineModel(gl, $V([0.0, 0.0, 0.0]), $V([100.0, 0.0, 0.0]), $V([1.0, 0.0, 0.0]));
-					models.yaxis = clockgl.lineModel(gl, $V([0.0, 0.0, 0.0]), $V([0.0, 100.0, 0.0]), $V([0.0, 1.0, 0.0]));
-					models.zaxis = clockgl.lineModel(gl, $V([0.0, 0.0, 0.0]), $V([0.0, 0.0, 100.0]), $V([0.0, 0.0, 1.0]));
-					console.log(models);
+						// Construct axes
+						var axisUniforms = {}
+						models.xaxis = clockgl.lineModel(gl, $V([0.0, 0.0, 0.0]), $V([100.0, 0.0, 0.0]), $V([1.0, 0.0, 0.0]), axisUniforms);
+						models.yaxis = clockgl.lineModel(gl, $V([0.0, 0.0, 0.0]), $V([0.0, 100.0, 0.0]), $V([0.0, 1.0, 0.0]), axisUniforms);
+						models.zaxis = clockgl.lineModel(gl, $V([0.0, 0.0, 0.0]), $V([0.0, 0.0, 100.0]), $V([0.0, 0.0, 1.0]), axisUniforms);
+						console.log(models);
+					}
+					catch (e) {
+						return $.Deferred().reject(e);
+					}
 				});
 
 			// When shaders and models are done...
@@ -158,10 +207,12 @@
 						clockgl.canvas = canvas;
 						clockgl.gl = gl;
 						clockgl.shaderProgram = shaderProgram;
-						clockgl.perspective = perspective;
+						clockgl.camera = camera;
+						clockgl.projection = projection;
 						clockgl.modelView = modelView;
-						clockgl.attributes = attributes;
-						clockgl.uniforms = uniforms;
+						clockgl.attributeLocs = attributeLocs;
+						clockgl.uniformLocs = uniformLocs;
+						clockgl.sceneUniforms = sceneUniforms;
 						clockgl.meshes = meshes;
 						clockgl.models = models;
 					}
@@ -169,9 +220,14 @@
 				.done(function() {
 					// Set to update the scene periodically.
 					runInterval = setInterval(updateScene, 15);
-				}).fail(function(message) {
-					// Throw w/ failure message
-					throw message
+				}).fail(function(e) {
+					// Print error
+					if(e instanceof Array && e.length > 0 && typeof(e[0]) === 'string') {
+						console.error.apply(this, e);
+					}
+					else {
+						console.error(e);
+					}
 				});
 		}
 	};
@@ -189,7 +245,18 @@
 
 		var canvasElement = canvas;
 
-
+		if(meshes) {
+			$.each(meshes, function(name, mesh) {
+				mesh.deleteBuffers(gl);
+			});
+		}
+		if(models) {
+			$.each(models, function(name, model) {
+				if(model.mesh) {
+					mesh.deleteBuffers();
+				}
+			});
+		}
 
 		canvas 			= undefined;
 		gl 				= undefined;
@@ -197,7 +264,7 @@
 		shaderProgram 	= undefined;
 		meshes 			= undefined;
 		models 			= undefined;
-		perspective 	= undefined;
+		projection 	= undefined;
 		modelView 		= undefined;
 		attributes 		= undefined;
 		uniforms 		= undefined;
@@ -219,7 +286,7 @@
 		catch (e) {}
 
 		if(!webgl) {
-			console.log('Unable to intialize WebGL. Your browser may not support it.');
+			console.error('Unable to intialize WebGL. Your browser may not support it.');
 			return null;
 		}
 
@@ -228,10 +295,11 @@
 
 	function updateScene() {
 		try {
-			clockgl.drawScene(gl, models, attributes, uniforms, worldUniform);
+			uniforms.modelView = camera.mat;
+			clockgl.drawScene(gl, models, attributeLocs, uniforms, worldUniform);
 		}
 		catch (e) {
-			console.log(e);
+			console.error(e);
 			clearInterval(runInterval);
 		}
 	}

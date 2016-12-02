@@ -64,10 +64,12 @@
 
 	/** Abstract Mesh
 	====================	*/
-	AbstractMesh = function(gl, vertices, normals, usage, mode) {
+	AbstractMesh = function(gl, vertices, normals, meshUniforms, usage, mode) {
 		// Set vertices and normals
 		this.vertices = vertices;
 		this.normals = normals;
+		// Set mesh-specific uniforms
+		this.uniforms = meshUniforms;
 		// Default value for `this.vlength` using the `AbstractMesh.prototype.getVerticesLength()` method
 		this.vlength = vertices.length/3;
 		// Default value for `this.length` using the `AbsractMesh.prototype.getLength()` method which is supplied all arguments the constructor is supplied, should be overridden
@@ -91,17 +93,11 @@
 	------------------------	*/
 	// Arguments are the same as what's given to the constructor (can give extra arguments to parent constructor to make this work)
 	AbstractMesh.prototype.getLength = function() {
-		if(this.vlength)
-			return this.vlength;
-		if(arguments.length > 1) {
-			var vertices = arguments[1];
-			return vertices.length/3;
-		}
-		return 0;
+		return this.vlength;
 	}
 	/** Deconstructors
 	--------------------	*/
-	AbstractMesh.prototype.deleteBuffers = function() {
+	AbstractMesh.prototype.deleteBuffers = function(gl) {
 		gl.deleteBuffer(this.vbuf);
 		gl.deleteBuffer(this.nbuf);
 	}
@@ -120,9 +116,14 @@
 		gl.vertexAttribPointer(attributes.position, 3, gl.FLOAT, false, 0, 0);
 	}
 	// Loops through uniforms dict and sets each, does not need to be overriden in most cases
-	AbstractMesh.prototype.setUniforms = function(uniforms) {
-		$.each(uniforms, function(key, uniform) {
-			uniform.set();
+	AbstractMesh.prototype.setUniforms = function(modelSceneUniforms) {
+		// Set argument (model/scene) uniforms
+		$.each(modelSceneUniforms, function(key, modelSceneUniform) {
+			modelSceneUniform.set();
+		});
+		// Set mesh uniforms
+		$.each(this.uniforms, function(key, meshUniform) {
+			meshUniform.set();
 		});
 	}
 	// Default drawMesh() is to draw triangles from vertex arrays, usually does not need to be overridden
@@ -142,9 +143,9 @@
 
 	/** Abstract Indexed Mesh (AbstractMesh)
 	========================================	*/
-	AbstractIndexedMesh = function(gl, vertices, normals, indices, usage, mode) {
+	AbstractIndexedMesh = function(gl, vertices, normals, indices, meshUniforms, usage, mode) {
 		// Inherit from AbstractMesh
-		AbstractMesh.apply(this, [gl, vertices, normals, usage, mode, /*For getLength()*/indices].concat(Array.prototype.splice.call(arguments, 6)));
+		AbstractMesh.apply(this, [gl, vertices, normals, meshUniforms, usage, mode, /*For getLength()*/indices].concat(Array.prototype.splice.call(arguments, 7)));
 
 		// Create index buffer
 		this.ibuf = gl.createBuffer();
@@ -159,15 +160,15 @@
 	/** Constructor helpers
 	------------------------	*/
 	AbstractIndexedMesh.prototype.getLength = function() {
-		if(arguments.length > 5) {
-			var indices = arguments[5];
+		if(arguments.length > 6) {
+			var indices = arguments[6];
 			return indices.length;
 		}
 		return 0;
 	}
 	/** Deconstructors
 	--------------------	*/
-	AbstractIndexedMesh.prototype.deleteBuffers = function() {
+	AbstractIndexedMesh.prototype.deleteBuffers = function(gl) {
 		// Call parents `deleteBuffers()` method
 		AbstractMesh.prototype.deleteBuffers.call(this);
 
@@ -191,9 +192,9 @@
 
 	/**	Default Mesh (AbstractIndexedMesh)
 	========================================	*/
-	Mesh = function(gl, vertices, normals, indices, usage) {
+	Mesh = function(gl, vertices, normals, indices, meshUniforms, usage) {
 		// Inherit from AbstractIndexedMesh
-		AbstractIndexedMesh.apply(this, [gl, vertices, indices, usage, gl.TRIANGLES].concat(Array.prototype.splice.call(arguments, 5)));
+		AbstractIndexedMesh.apply(this, [gl, vertices, normals, indices, meshUniforms, usage, gl.TRIANGLES].concat(Array.prototype.splice.call(arguments, 6)));
 	}
 	/* Inheritance of prototype
 	----------------------------	*/
@@ -203,9 +204,10 @@
 
 	/** LineMesh (AbstractMesh)
 	============================	*/
-	LinesMesh = function(gl, vertices, usage) {
+	LinesMesh = function(gl, vertices, normals, meshUiforms, usage) {
+		normals = normals || clockgl.repeat(vertices.length, 1/3);
 		// Inherit from AbstractMesh
-		AbstractMesh.apply(this, [gl, vertices, usage, gl.LINES].concat(Array.prototype.splice.call(arguments,4)));
+		AbstractMesh.apply(this, [gl, vertices, normals, meshUniforms, usage, gl.LINES].concat(Array.prototype.splice.call(arguments,5)));
 	}
 	/* Inheritance of prototype
 	----------------------------	*/

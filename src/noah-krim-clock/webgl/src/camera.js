@@ -9,11 +9,11 @@
 	====================	*/
 	var Camera = function(pos, look, up) {
 		// Assert and set values;
-		assert(pos instanceof Vector && pos.dimensions() === 3);
+		console.assert(pos instanceof Vector && pos.dimensions() === 3, 'Camera position expected a vector of length 3, but received: %o', pos);
 		this._pos = pos;
-		assert(look instanceof Vector && look.dimensions() === 3);
+		console.assert(look instanceof Vector && look.dimensions() === 3, 'Camera look direction expected a vector of length 3, but received: %o', look);
 		this._look = look;
-		assert(up instanceof Vector && up.dimensions() === 3);
+		console.assert(up instanceof Vector && up.dimensions() === 3, 'Camera up direction expected a vector of length 3, but received: %o', up);
 		this._up = up;
 
 		// Declare matrix cache
@@ -43,7 +43,7 @@
 			return this._pos;
 		},
 		set: function(pos) {
-			assert(pos instanceof Vector && pos.dimensions() === 3);
+			console.assert(pos instanceof Vector && pos.dimensions() === 3, 'Camera position expected a vector of length 3, but received: %o', pos);
 			this._pos = pos;
 			return this._pos;
 		},
@@ -54,7 +54,7 @@
 			return this._look;
 		},
 		set: function(look) {
-			assert(look instanceof Vector && look.dimensions() === 3);
+			console.assert(look instanceof Vector && look.dimensions() === 3, 'Camera look direction expected a vector of length 3, but received: %o', look);
 			this._look = look;
 			return this._look;
 		},
@@ -65,7 +65,7 @@
 			return this._up;
 		},
 		set: function(up) {
-			assert(up instanceof Vector && up.dimensions() === 3);
+			console.assert(up instanceof Vector && up.dimensions() === 3, 'Camera up direction expected a vector of length 3, but received: %o', up);
 			this._up = up;
 			return this._up;
 		},

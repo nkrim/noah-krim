@@ -37,14 +37,14 @@
 	Object.defineProperty(Model.prototype, 'color', { get: function() { return this._color }});
 	/** Color helpers
 	--------------------	*/
-	Model.prototype.setColor = function(gl, color, drawMethod) {
+	Model.prototype.setColor = function(gl, color, usage) {
 		if(color instanceof Array) {
 			if(color.length == 3)
 				this._color = $V(color.concat(1.0));
 			else if(color.length >= 4)
 				this._color = $V(color.slice(0,4));
 			else
-				throw 'Color array of length '+color.length+' too short; minimum is 3';
+				throw ['Model setColor: color array is too short\nExpected: length >= 3\nReceived: length = %d (%o)', color.length, color];
 		}
 		else if(color instanceof Vector) {
 			if(color.dimensions() == 3)
@@ -52,29 +52,25 @@
 			else if(color.dimensions() >= 4)
 				this._color = $V(color.elements.slice(0,4));
 			else
-				throw 'Color vector with of length '+color.dimensions()+' too short; minimum is 3';
+				throw ['Model setColor: color vector is too short\nExpected: length >= 3\nReceived: length = %d (%o)', color.dimensions(), color];
 		}
 		else {
-			throw 'setColor() expected an Array or a Vector, but color '+color+' is neither';
+			throw ['Model setColor(): illegal color type\nExpected: Array or Vector with length>=3\nReceived: %o', color];
 		}
 
-		// On success, set the color buffer with the new color
-		this.cbuf = this.loadColorBuffer(gl, null, drawMethod);
+		// On success, load the color buffer with the new color data
+		this.loadColorBuffer(gl, null, usage);
 	}
-	Model.prototype.genColorBuffer = function(gl, drawMethod) {
+	Model.prototype._genColorBuffer = function(gl, usage) {
 		// Create color buffer
-		var cbuf = gl.createBuffer();
-
+		this.cbuf = gl.createBuffer();
 		// Return loaded color buffer reference
-		return this.loadColorBuffer(gl, cbuf, drawMethod);
+		return this.loadColorBuffer(gl, usage);
 	}
-	Model.prototype.loadColorBuffer = function(gl, cbuf, drawMethod) {
+	Model.prototype.loadColorBuffer = function(gl, usage) {
 		// Reassign cbuf if empty argument, or generate if this doesn't have one
-		if(!cbuf) {
-			if(!this.cbuf)
-				return this.genColorBuffer(gl, drawMethod);
-			cbuf = this.cbuf;
-		}
+		if(this.cbuf)
+			return this._genColorBuffer(gl, usage);
 
 		// Create color array
 		var colArr = function(arr, rep) {
@@ -86,7 +82,7 @@
 
 		// Load color buffer
 		gl.bindBuffer(gl.ARRAY_BUFFER, cbuf);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colArr), drawMethod || gl.STATIC_DRAW);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colArr), usage || gl.STATIC_DRAW);
 
 		// Return color buffer reference
 		return cbuf;
