@@ -26,13 +26,27 @@
 	}
 
 	clockgl.mapObj = function(obj, mapper) {
-		return $.extend.apply(this, [{}].concat(
-			$.map(obj, function(val, key) {
-				var ret = {};
-				ret[key] = mapper(val, key);
-				return ret;
-			})
-		));
+		var ret = {};
+		$.each(obj, function(key, val) {
+			ret[key] = mapper(val, key);
+		});
+		return ret;
+	}
+
+	clockgl.filterObj = function(obj, filter) {
+		var ret = {};
+		$.each(obj, function(key, val) {
+			if(filter(val, key))
+				ret[key] = val;
+		});
+		return ret;
+	}
+
+	clockgl.radians = function(degrees) {
+		return degrees * (Math.PI/180.0);
+	}
+	clockgl.degrees = function(radians) {
+		return radians * (180.0/Math.PI);
 	}
 	
 }(window.clockgl = window.clockgl || {}, jQuery));

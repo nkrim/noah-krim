@@ -24,20 +24,25 @@
 		VEC4I: 24,
 	}
 
+	/** Uniform statics
+	====================	*/
+	clockgl.UNIFORM_TRUE = $V([1]);
+	clockgl.UNIFORM_FALSE = $V([0]);
+
 	/** Uniform object - Matrix4Float32 (default)
 	========================================	*/
-	var Uniform = function(type, loc) {
+	var Uniform = function(type, loc, val) {
 		this._type = type || clockgl.UNIFORM.MAT4F;
-		console.assert(this.isMatrix() || this.isVector(), 'Uniform: type not found\nExpected: one of clockgl.UNIFORM (%o)\nReceived: %o', clockgl.UNIFORM, type);
+		console.assert(this.isMatrix() || this.isVector(), 'Uniform: type not found\n\tExpected: one of clockgl.UNIFORM (%o)\n\tReceived: %o', clockgl.UNIFORM, type);
 		this.loc = loc;
+		this._val = val || null;
 
-		this._val = null;
 		this._setter = null;
 	}
 
 	/** Uniform properties
 	------------------------	*/
-	Object.defineProperty(Unform.prototype, 'type', {
+	Object.defineProperty(Uniform.prototype, 'type', {
 		get: function() {
 			return this._type;
 		},
@@ -45,7 +50,7 @@
 			if(this._type === type)
 				return;
 			this._type = this.type;
-			console.assert(this.isMatrix() || this.isVector(), 'Uniform: type not found\nExpected: one of clockgl.UNIFORM (%o)\nRceived: %o', clockgl.UNIFORM, type);
+			console.assert(this.isMatrix() || this.isVector(), 'Uniform: type not found\n\tExpected: one of clockgl.UNIFORM (%o)\n\tRceived: %o', clockgl.UNIFORM, type);
 			this._setter = undefined;
 		}
 	});
@@ -56,16 +61,16 @@
 		set: function(val) {
 			if(this.isMatrix()) {
 				var td = this.dimensions();
-				console.assert(val instanceof Matrix, 'Uniform: illegal value\nExpected: %dx%d Matrix\nReceived: %o', td.rows, td.cols, val);
+				console.assert(val instanceof Matrix, 'Uniform: illegal value\n\tExpected: %dx%d Matrix\n\tReceived: %o', td.rows, td.cols, val);
 				var vd = val.dimensions();
-				console.assert(vd.rows==td.rows && vd.cols==td.cols, 'Uniform: wrong matrix dimensionn\nExpected: %dx%d Matrix\nReceived: %dx%d Matrix (%o)', td.rows, td.cols, vd.rows, vd.cols, val);
+				console.assert(vd.rows==td.rows && vd.cols==td.cols, 'Uniform: wrong matrix dimensionn\n\tExpected: %dx%d Matrix\n\tReceived: %dx%d Matrix (%o)', td.rows, td.cols, vd.rows, vd.cols, val);
 				this._val = val;
 			}
 			else if(this.isVector()) {
 				var td = this.dimensions();
-				console.assert(val instanceof Matrix, 'Uniform: illegal value\nExpected: %dx%d Matrix\nReceived: %o', td.rows, td.cols, val);
+				console.assert(val instanceof Vector, 'Uniform: illegal value\n\tExpected: %dD Vector\n\tReceived: %o', td, val);
 				var vd = val.dimensions();
-				console.assert(vd.rows==td.rows && vd.cols==td.cols, 'Uniform: wrong matrix dimensionn\nExpected: %dx%d Matrix\n Received: %dx%d Matrix (%o)', td.rows, td.cols, vd.rows, vd.cols, val);
+				console.assert(td == vd, 'Uniform: wrong vector dimensions\n\tExpected: %dD Vector\n\t Received: %dD Vector (%o)', td, vd, val);
 				this._val = val;
 			}
 			else {
@@ -77,25 +82,25 @@
 
 	/** Uniform instance methods
 	----------------------------	*/
-	Uniform.prototype.clone = function() {
-		return new Uniform(this._type, this.loc, this.val);
+	Uniform.prototype.clone = function(newVal) {
+		return new Uniform(this._type, this.loc, newVal || this._val);
 	}
 
 	Uniform.prototype.set = function(gl) {
 		if(!this._setter)
-			this._setter = Uniform._getSetter(gl, type);		
-		this._setter(this.loc, this.val);
+			this._setter = Uniform._getSetter(gl, this._type);		
+		this._setter(this.loc, this._val);
 	}
 
-	Uniform.prototype.isMatrix() {
+	Uniform.prototype.isMatrix = function() {
 		return this._type >= 2 && this._type <= 4;
 	}
 
-	Uniform.prototype.isVector() {
+	Uniform.prototype.isVector = function() {
 		return this._type >= 11 && this._type <= 14 || this._type >= 21 && this._type <= 24;
 	}
 
-	Uniform.prototype.dimensions() {
+	Uniform.prototype.dimensions = function() {
 		if(this.isMatrix()) {
 			return {
 				rows: this.type,

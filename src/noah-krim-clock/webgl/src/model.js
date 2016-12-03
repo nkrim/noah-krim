@@ -10,27 +10,15 @@
 	var Model;	// Model holding a mesh, color, and world matrix
 
 
-	/** Specialized model constructors
-	====================================	*/
-	// LineMesh constructor
-	clockgl.lineModel = function(gl, start, end, color, world) {
-		if(start instanceof Vector)
-			start = start.flatten();
-		if(end instanceof Vector)
-			end = end.flatten(); 
-		return new Model(gl, new clockgl.LinesMesh(gl, clockgl.dechunk([start, end])), color, world);
-	}
-
-
 	/** Model object
 	================	*/
-	Model = function(gl, mesh, color, world) {
+	Model = function(gl, mesh, color, world, usage) {
 		// Set object mesh
 		this.mesh = mesh;
 		// Set color (default is white)
-		this.setColor(gl, color || [1.0, 1.0, 1.0, 1.0]);
+		this.setColor(gl, color || [1.0, 1.0, 1.0, 1.0], usage);
 		// Set world matrix (default is identity)
-		this.world = world || $V([1,1,1]);
+		this.world = world || Matrix.I(4);
 	}
 	/** Properties
 	----------------	*/
@@ -69,7 +57,7 @@
 	}
 	Model.prototype.loadColorBuffer = function(gl, usage) {
 		// Reassign cbuf if empty argument, or generate if this doesn't have one
-		if(this.cbuf)
+		if(!this.cbuf)
 			return this._genColorBuffer(gl, usage);
 
 		// Create color array
@@ -81,19 +69,19 @@
 		}(this._color.flatten(), this.mesh.vlength);
 
 		// Load color buffer
-		gl.bindBuffer(gl.ARRAY_BUFFER, cbuf);
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.cbuf);
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colArr), usage || gl.STATIC_DRAW);
-
-		// Return color buffer reference
-		return cbuf;
 	}
 	/** Draw methods
 	----------------	*/
-	Model.prototype.draw = function(gl, attributes, uniforms, worldUniform) {
+	Model.prototype.draw = function(gl, attributes, uniforms, uniformsLayout) {
 		// Copy uniforms dict and add world uniform
-		uniforms = $.extend({}, uniforms, {world: new clockgl.Uniform(gl, clockgl.UNIFORM.VEC3F, worldUniform, this.world)});
+		var modelUniformsDef = {
+			world: this.world,
+		}
+		uniforms = $.extend(uniforms, clockgl._initUniformsFromContextLayout(uniformsLayout.model, modelUniformsDef));
 		// Draw model's mesh
-		this.mesh.draw(gl, attributes, uniforms, this.cbuf);
+		this.mesh.draw(gl, attributes, this.cbuf, uniforms, uniformsLayout);
 	}
 
 

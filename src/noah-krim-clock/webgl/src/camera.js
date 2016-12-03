@@ -23,20 +23,16 @@
 		this.changed = true;
 	}
 
-
+	Camera.prototype.modelView = function() {
+		if(!this.changed)
+			return this._mat;
+		this._mat = makeLookAt.apply(this, [].concat(this._pos.flatten(), this._look.flatten(), this._up.flatten()));
+		this.changed = false;
+		return this._mat;
+	}
 
 	/** Define properties
 	------------------------	*/
-	// Matrix representation
-	Object.defineProperty(Camera.prototype, 'mat', { 
-		get: function() { 
-			if(!this.changed)
-				return this._mat;
-			this._mat = makeLookAt.apply(this, [].concat(this._pos.flatten(), this._look.flatten(), this._up.flatten()));
-			this.changed = false;
-			return this._mat;
-		},
-	});
 	// Position
 	Object.defineProperty(Camera.prototype, 'pos', {
 		get: function() {
@@ -45,6 +41,7 @@
 		set: function(pos) {
 			console.assert(pos instanceof Vector && pos.dimensions() === 3, 'Camera position expected a vector of length 3, but received: %o', pos);
 			this._pos = pos;
+			this.changed = true;
 			return this._pos;
 		},
 	});
@@ -56,6 +53,7 @@
 		set: function(look) {
 			console.assert(look instanceof Vector && look.dimensions() === 3, 'Camera look direction expected a vector of length 3, but received: %o', look);
 			this._look = look;
+			this.changed = true;
 			return this._look;
 		},
 	});
@@ -67,6 +65,7 @@
 		set: function(up) {
 			console.assert(up instanceof Vector && up.dimensions() === 3, 'Camera up direction expected a vector of length 3, but received: %o', up);
 			this._up = up;
+			this.changed = true;
 			return this._up;
 		},
 	});

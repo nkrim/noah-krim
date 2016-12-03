@@ -15,10 +15,10 @@ attribute vec4 color;
 ------------------------	*/
 uniform mat4 projection;
 uniform mat4 modelView;
-uniform vec3 world;
+uniform mat4 world;
 /** Camera
 ------------------------	*/
-uniform vec3 camPos;
+//uniform vec3 camPos;
 
 /** Fragment args
 ========================	*/
@@ -27,8 +27,8 @@ varying lowp vec3 vNormal;
 
 void main(void) {
 	// Transform vertex and normal
-	vec4 pos = projection * modelView * vec4((camPos - world * position), 1.0);
-	vec3 norm = world * normal;
+	vec4 pos = projection * modelView * world * vec4(position, 1.0);
+	vec3 norm = (world * vec4(normal, 0.0)).xyz;
 
 	// Set position
 	gl_Position = pos;

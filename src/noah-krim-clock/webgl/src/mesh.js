@@ -16,60 +16,29 @@
 	================	*/
 	/** Mesh loading
 	----------------	*/
-	clockgl.loadMeshesFromLoader = function(gl, nameAndUrls) {
+	clockgl.loadMeshesFromLoader = function(gl, meshesSrcDef) {
 		var d = $.Deferred();
+		var nameAndUrls = clockgl.mapObj(meshesSrcDef, function(opts) { return opts.src; });
 		OBJ.downloadMeshes(nameAndUrls, function(meshes) {
-			meshes = clockgl.mapObj(meshes, function(mesh) {
-				return new Mesh(gl, mesh.vertices, mesh.indices);
+			meshes = clockgl.mapObj(meshes, function(mesh, name) {
+				var opts = meshesSrcDef[name];
+				console.log(mesh);
+				return new Mesh(gl, mesh.vertices, mesh.vertexNormals, mesh.indices, opts.uniforms, opts.usage);
 			});
 			d.resolve(meshes);
 		});
 		return d;
 	}
-	clockgl.loadMesh = function(gl, fileUrl, meshType, usage) {
-		return $.getJSON(fileUrl)
-			.then(function(data) {
-				// If mesh is an indexed mesh, use indices
-				if(meshType.prototype instanceof AbstractIndexedMesh)
-					return new meshType(gl, data.vertices, data.indices, usage);				
-				// If mesh is a normal mesh, use only vertices
-				else if(meshType.prototype instanceof AbstractMesh)
-					return new meshType(gl, data.vertices, usage);
-				// Otherwise, reject 
-				else
-					return $.Deferred().reject('Failed to load mesh: '+meshType+' is not a valid mesh type');
-			});
-	}
-	clockgl.loadMeshes = function(gl, meshesSrcDef) {
-		// Load all meshes and get their deferred objects, transformed to singleton objects with its name as the key with the mesh as its value
-		var deferredMeshes = $.map(meshesSrcDef, function(opt, name) {
-			return clockgl.loadMesh(gl, opt.src, opt.type || Mesh, opt.usage)
-				.then(function(mesh) {
-					var ret = {};
-					ret[name] = mesh;
-					return ret;
-				},function() {
-					return $.Deferred().reject('Failed to load mesh "'+name+'" with from src: '+opt.src);
-				});
-		});
-		if(deferredMeshes.length === 0)
-			return $.Deferred().resolve({});
-		// Wait on all deferreds and concatenate into one object
-		return $.when.apply(this, deferredMeshes)
-			.then(function() {
-				return $.extend.apply(this, [{}].concat(Array.from(arguments)));
-			});
-	}
 
 
 	/** Abstract Mesh
 	====================	*/
-	AbstractMesh = function(gl, vertices, normals, meshUniforms, usage, mode) {
+	AbstractMesh = function(gl, vertices, normals, meshUniformsDef, usage, mode) {
 		// Set vertices and normals
 		this.vertices = vertices;
 		this.normals = normals;
 		// Set mesh-specific uniforms
-		this.uniforms = meshUniforms;
+		this.uniformsDef = meshUniformsDef || {};
 		// Default value for `this.vlength` using the `AbstractMesh.prototype.getVerticesLength()` method
 		this.vlength = vertices.length/3;
 		// Default value for `this.length` using the `AbsractMesh.prototype.getLength()` method which is supplied all arguments the constructor is supplied, should be overridden
@@ -106,36 +75,40 @@
 	// Bind and point buffers for this mesh, last bind should be for the buffer that will be drawn
 	AbstractMesh.prototype.bindForDraw = function(gl, attributes, cbuf) {
 		// Bind and point color buffer, if present
-		if(cbuf) {
-			gl.bindBuffer(gl.ARRAY_BUFFER, cbuf);
-			gl.vertexAttribPointer(attributes.color, 4, gl.FLOAT, false, 0, 0);
-		}
+		gl.bindBuffer(gl.ARRAY_BUFFER, cbuf);
+		gl.vertexAttribPointer(attributes.color, 4, gl.FLOAT, false, 0, 0);
+
+		// Bind and point normal buffer
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.nbuf);
+		gl.vertexAttribPointer(attributes.normal, 3, gl.FLOAT, false, 0, 0);
 
 		// Bind and point vertex buffer
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vbuf);
 		gl.vertexAttribPointer(attributes.position, 3, gl.FLOAT, false, 0, 0);
 	}
 	// Loops through uniforms dict and sets each, does not need to be overriden in most cases
-	AbstractMesh.prototype.setUniforms = function(modelSceneUniforms) {
+	AbstractMesh.prototype.setUniforms = function(gl, modelSceneUniforms, uniformsLayout) {
 		// Set argument (model/scene) uniforms
-		$.each(modelSceneUniforms, function(key, modelSceneUniform) {
-			modelSceneUniform.set();
+		$.each(modelSceneUniforms, function(name, uniform) {
+			uniform.set(gl);
 		});
 		// Set mesh uniforms
-		$.each(this.uniforms, function(key, meshUniform) {
-			meshUniform.set();
+		var meshUniforms = clockgl._initUniformsFromContextLayout(uniformsLayout.mesh, this.uniformsDef);
+		$.each(meshUniforms, function(name, uniform) {
+			uniform.set(gl);
 		});
+
 	}
 	// Default drawMesh() is to draw triangles from vertex arrays, usually does not need to be overridden
 	AbstractMesh.prototype.drawMesh = function(gl) {
 		gl.drawArrays(this.mode, 0, this.length);
 	}
 	// Default main draw method, uses the above methods in order, usually does not need to be overriden, one of the above should be, preferably
-	AbstractMesh.prototype.draw = function(gl, attributes, uniforms, cbuf) {
+	AbstractMesh.prototype.draw = function(gl, attributes, cbuf, modelSceneUniforms, uniformsLayout) {
 		// Bind for draw
 		this.bindForDraw(gl, attributes, cbuf);
 		// Set uniforms
-		this.setUniforms(uniforms);
+		this.setUniforms(gl, modelSceneUniforms, uniformsLayout);
 		// Draw mesh
 		this.drawMesh(gl);
 	}
@@ -143,9 +116,9 @@
 
 	/** Abstract Indexed Mesh (AbstractMesh)
 	========================================	*/
-	AbstractIndexedMesh = function(gl, vertices, normals, indices, meshUniforms, usage, mode) {
+	AbstractIndexedMesh = function(gl, vertices, normals, indices, meshUniformsDef, usage, mode) {
 		// Inherit from AbstractMesh
-		AbstractMesh.apply(this, [gl, vertices, normals, meshUniforms, usage, mode, /*For getLength()*/indices].concat(Array.prototype.splice.call(arguments, 7)));
+		AbstractMesh.apply(this, [gl, vertices, normals, meshUniformsDef, usage, mode, /*For getLength()*/indices].concat(Array.prototype.splice.call(arguments, 7)));
 
 		// Create index buffer
 		this.ibuf = gl.createBuffer();
@@ -192,9 +165,9 @@
 
 	/**	Default Mesh (AbstractIndexedMesh)
 	========================================	*/
-	Mesh = function(gl, vertices, normals, indices, meshUniforms, usage) {
+	Mesh = function(gl, vertices, normals, indices, meshUniformsDef, usage) {
 		// Inherit from AbstractIndexedMesh
-		AbstractIndexedMesh.apply(this, [gl, vertices, normals, indices, meshUniforms, usage, gl.TRIANGLES].concat(Array.prototype.splice.call(arguments, 6)));
+		AbstractIndexedMesh.apply(this, [gl, vertices, normals, indices, meshUniformsDef, usage, gl.TRIANGLES].concat(Array.prototype.splice.call(arguments, 6)));
 	}
 	/* Inheritance of prototype
 	----------------------------	*/
@@ -204,15 +177,36 @@
 
 	/** LineMesh (AbstractMesh)
 	============================	*/
-	LinesMesh = function(gl, vertices, normals, meshUiforms, usage) {
+	LinesMesh = function(gl, vertices, normals, meshUniformsDef, usage) {
 		normals = normals || clockgl.repeat(vertices.length, 1/3);
 		// Inherit from AbstractMesh
-		AbstractMesh.apply(this, [gl, vertices, normals, meshUniforms, usage, gl.LINES].concat(Array.prototype.splice.call(arguments,5)));
+		AbstractMesh.apply(this, [gl, vertices, normals, meshUniformsDef, usage, gl.LINES].concat(Array.prototype.splice.call(arguments,5)));
 	}
 	/* Inheritance of prototype
 	----------------------------	*/
 	LinesMesh.prototype = Object.create(AbstractMesh.prototype);
 	LinesMesh.prototype.constructor = LinesMesh;
+
+
+	/** Raw mesh initializers
+	============================	*/
+	// Expected options: {vertices[, normals][, usage]}
+	clockgl.rawSingleLineMesh = function(gl, options, meshUniformsDef) {
+		console.assert(options.start, 'Raw Single Line Mesh: options missing `start`\n\tExpected: {start, end[, startNormal, endNormal][, usage]}\n\tReceived: %o', options);
+		console.assert(options.end, 'Raw Single Line Mesh: options missing `end`\n\tExpected: {start, end[, startNormal, endNormal][, usage]}\n\tReceived: %o', options);
+		var vertices, normals;
+		// Set vertices
+		var start = options.start instanceof Vector ? options.start.flatten() : options.start;
+		var end = options.end instanceof Vector ? options.end.flatten() : options.end;
+		vertices = start.concat(end);
+		// Set normals (if present)
+		if(options.startNormal && options.endNormal) {
+			var startNormal = options.startNormal instanceof Vector ? options.startNormal.flatten() : options.startNormal;
+			var endNormal = options.endNormal instanceof Vector ? options.endNormal.flatten() : options.endNormal;
+			normals = startNormal.concat(endNormal);
+		}
+		return new LinesMesh(gl, vertices, normals, meshUniformsDef, options.usage);
+	}
 
 
 	/** Exports
