@@ -8,9 +8,13 @@
 			:host {
 				display: block;
 			}
+
+			#canvas:focus {
+				/*outline: none;*/
+			}
 		</style>
 
-		<canvas id="canvas"></canvas>
+		<canvas id="canvas" tabindex="0" autofocus$="[[autofocusCanvas]]"></canvas>
 		
 	</template>
 	<script>
@@ -26,7 +30,7 @@
 				height: {
 					type: Number,
 					value: 480,
-				}
+				},
 			},
 
 			observers: [

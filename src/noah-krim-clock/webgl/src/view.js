@@ -7,7 +7,7 @@
 
 	clockgl.drawScene = function(gl, models, attributeLocs, sceneUniforms, uniformsLayout) {
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
+		
 		$.each(models, function(key, model) {
 			model.draw(gl, attributeLocs, sceneUniforms, uniformsLayout);
 		});

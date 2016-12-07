@@ -173,6 +173,37 @@
 	----------------------------	*/
 	Mesh.prototype = Object.create(AbstractIndexedMesh.prototype);
 	Mesh.prototype.constructor = Mesh;
+	/*Mesh.prototype.draw = function(gl, attributes, cbuf, modelSceneUniforms, uniformsLayout) {
+		this.bindForDraw(gl, attributes, cbuf);
+
+		gl.enable(gl.STENCIL_TEST);
+
+		gl.clearStencil(0.0);
+		gl.clear(gl.STENCIL_BUFFER_BIT);
+		gl.stencilFunc(gl.ALWAYS, 1, ~0);
+		gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+		this.mode = gl.TRIANGLES;
+		
+		var lighting_on = this.uniformsDef.lighting_on || clockgl.UNIFORM_FALSE;
+		this.setUniforms(gl, modelSceneUniforms, uniformsLayout);
+
+		this.drawMesh(gl);
+
+		gl.stencilFunc(gl.NOTEQUAL, 1, ~0);
+		gl.lineWidth(3);
+		this.mode = gl.LINES;
+		gl.colorMask(1, 0, 0, 1);
+		
+		this.uniformsDef.lighting_on = clockgl.UNIFORM_FALSE;
+		this.setUniforms(gl, modelSceneUniforms, uniformsLayout);
+
+		this.drawMesh(gl);
+
+		gl.disable(gl.STENCIL_TEST);
+		gl.lineWidth(1);
+		gl.colorMask(1, 1, 1, 1);
+		this.uniformsDef.lighting_on = lighting_on;
+	}*/
 
 
 	/** LineMesh (AbstractMesh)

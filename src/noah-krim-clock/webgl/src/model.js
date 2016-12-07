@@ -18,11 +18,16 @@
 		// Set color (default is white)
 		this.setColor(gl, color || [1.0, 1.0, 1.0, 1.0], usage);
 		// Set world matrix (default is identity)
-		this.world = world || Matrix.I(4);
+		this.world = world || new clockgl.World();
 	}
+
+
 	/** Properties
 	----------------	*/
 	Object.defineProperty(Model.prototype, 'color', { get: function() { return this._color }});
+	Object.defineProperty(Model.prototype, 'mode', { get: function() { return this.mesh.mode}, set: function(mode) { this.mesh.mode = mode;}});
+
+
 	/** Color helpers
 	--------------------	*/
 	Model.prototype.setColor = function(gl, color, usage) {
@@ -72,18 +77,37 @@
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.cbuf);
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colArr), usage || gl.STATIC_DRAW);
 	}
+
+
 	/** Draw methods
 	----------------	*/
 	Model.prototype.draw = function(gl, attributes, uniforms, uniformsLayout) {
+		//if(this.hide)
+			//return;
 		// Copy uniforms dict and add world uniform
 		var modelUniformsDef = {
-			world: this.world,
+			base: this.world.baseMatrix(),
+			scale: this.world.scaleMatrix(),
+			rotation: this.world.rotationMatrix(),
+			translation: this.world.translationMatrix(),
 		}
-		uniforms = $.extend(uniforms, clockgl._initUniformsFromContextLayout(uniformsLayout.model, modelUniformsDef));
+		$.extend(uniforms, clockgl._initUniformsFromContextLayout(uniformsLayout.model, modelUniformsDef));
 		// Draw model's mesh
 		this.mesh.draw(gl, attributes, this.cbuf, uniforms, uniformsLayout);
 	}
 
+
+	/** Mutator methods
+	--------------------	*/
+	Model.prototype.hide = function() {
+		this.hide = true;
+	}
+	Model.prototype.show = function() {
+		this.hide = false;
+	}
+	Model.prototype.toggleShow = function() {
+		this.hide = !this.hide;
+	}
 
 	/** Exports
 	============	*/
