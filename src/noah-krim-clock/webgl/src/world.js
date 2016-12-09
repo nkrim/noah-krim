@@ -97,6 +97,14 @@
 		return this;
 	}
 
+	World.prototype.saveAsBase = function() {
+		this._base = this.toMatrix();
+		this.resetScale();
+		this.resetRotation();
+		this.resetTranslation();
+		return this;
+	}
+
 	World.prototype.scale = function(s) {
 		this._scale.x(s);	
 		return this;

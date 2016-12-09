@@ -84,7 +84,7 @@
 	Model.prototype.draw = function(gl, attributes, uniforms, uniformsLayout) {
 		//if(this.hide)
 			//return;
-		// Copy uniforms dict and add world uniform
+		// Add model uniforms/defaults to uniforms dict
 		var modelUniformsDef = {
 			base: this.world.baseMatrix(),
 			scale: this.world.scaleMatrix(),
@@ -96,18 +96,6 @@
 		this.mesh.draw(gl, attributes, this.cbuf, uniforms, uniformsLayout);
 	}
 
-
-	/** Mutator methods
-	--------------------	*/
-	Model.prototype.hide = function() {
-		this.hide = true;
-	}
-	Model.prototype.show = function() {
-		this.hide = false;
-	}
-	Model.prototype.toggleShow = function() {
-		this.hide = !this.hide;
-	}
 
 	/** Exports
 	============	*/

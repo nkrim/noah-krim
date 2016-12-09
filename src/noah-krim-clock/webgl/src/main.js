@@ -29,7 +29,7 @@
 			init: clockgl.rawSingleLineMesh,
 			options: {
 				start: $V([0.0, 0.0, 0.0]),
-				end: $V([100.0, 0.0, 0.0]),
+				end: $V([Math.pow(2,14), 0.0, 0.0]),
 			},
 			uniforms: {
 				lighting_on: clockgl.UNIFORM_FALSE,
@@ -38,38 +38,57 @@
 	};
 	/** Scene Objects
 	----------------------------	*/
-	var modelsDef = {		// Models definition (key: name, value: {mesh[, color=white][, world={base,scale,rot,trans}][, uniforms={}]})
-		// Axes
-		xaxis: {
-			mesh: 'axis',
-			color: $V([1.0, 0.0, 0.0, 1.0]),
-		},
-		yaxis: {
-			mesh: 'axis',
-			color: $V([0.0, 1.0, 0.0, 1.0]),
-			world: {
-				rot: Matrix.RotationZ(clockgl.radians(90)),
+	/** SceneObjs definition ({	name: {
+									models: { 
+										name: { mesh[, color=white][, world={base,scale,rot,trans}][, uniforms={}][,options={}] }
+									}
+									[,world: { base, scale, rot, trans }]
+									[,optionsLayout: { Default values to assign as model options }]
+								}) */
+	var sceneObjsDef = {	
+		// Axes	
+		axes: {
+			xaxis: {
+				mesh: 'axis',
+				color: $V([1.0, 0.0, 0.0, 1.0]),
 			},
-		},
-		zaxis: {
-			mesh: 'axis',
-			color: $V([0.0, 0.0, 1.0, 1.0]),
-			world: {
-				rot: Matrix.RotationY(clockgl.radians(-90)),
+			yaxis: {
+				mesh: 'axis',
+				color: $V([0.0, 1.0, 0.0, 1.0]),
+				world: {
+					rot: Matrix.RotationZ(clockgl.radians(90)),
+				},
 			},
-		},
-		laxis: {
-			mesh: 'axis',
-			color: $V([1.0, 1.0, 0.0, 1.0]),
+			zaxis: {
+				mesh: 'axis',
+				color: $V([0.0, 0.0, 1.0, 1.0]),
+				world: {
+					rot: Matrix.RotationY(clockgl.radians(-90)),
+				},
+			},
+			laxis: {
+				mesh: 'axis',
+				color: $V([1.0, 1.0, 0.0, 1.0]),
+			},
 		},
 		// Sourced
-		line0: {
-			mesh: 'line',
-			color: $V([1.0, 1.0, 1.0, 1.0]),
-			world: {
-				scale: $V([0.1, 0.1, 0.1]),
-				trans: $V([0.0,-6.0, 0.0]),
+		clock0: {
+			line0: {
+				mesh: 'line',
+				color: $V([1.0, 1.0, 1.0, 1.0]),
+				world: {
+					scale: $V([0.1, 0.1, 0.1]),
+					trans: $V([0.0,-6.0, 0.0]),
+				},
 			},
+			line1: {
+				mesh: 'line',
+				color: $V([1.0, 1.0, 1.0, 1.0]),
+				world: {
+					scale: $V([0.1, 0.1, 0.1]),
+					trans: $V([0.0,-6.0, 0.0]),
+				},
+			}
 		},
 	};
 	/** View
@@ -92,7 +111,7 @@
 			ambient_int: $V([0.5]),
 		},
 		diffuse: {
-			diffuse_cam: new clockgl.Camera($V([-1,1,1]),$V([0,0,0]),$V([0,1,0])), //TEMP
+			diffuse_cam: new clockgl.Camera($V([-1,1,1]),$V([0,0,0])), //TEMP
 			diffuse_dir: $V([1.0, -.0, -1.0]).toUnitVector(),
 			diffuse_col: $V([1.0, 1.0, 1.0]), 
 			diffuse_int: $V([0.5]),
@@ -136,6 +155,12 @@
 			diffuse_int: 	{
 				type: clockgl.UNIFORM.VEC1F,
 				default: lightingDef.diffuse.diffuse_int,
+			},
+		},
+		sceneobj: {
+			objWorld: {
+				type: clockgl.UNIFORM.MAT4F,
+				default: Matrix.I(4),
 			},
 		},
 		model: {
@@ -185,10 +210,10 @@
 	----------------------------	*/
 	var camera;
 	var projection;
-	/** Model/SceneObj variables
+	/** Mesh/SceneObj variables
 	----------------------------	*/
 	var meshes;
-	var models;
+	var sceneObjs;
 	/** Attribute locations
 	----------------------------	*/
 	var attributeLocs;
@@ -281,7 +306,7 @@
 						console.log(meshes);
 
 						// Construct models from modelsDef
-						models = clockgl.mapObj(modelsDef, function(opt) {
+						sceneObjs = clockgl.mapObj(sceneObjsDef, function(opt) {
 							var world = opt.world ? new clockgl.World(opt.world.base, opt.world.scale, opt.world.rotation || opt.world.rot, opt.world.translation || opt.world.trans) : undefined;
 							return new clockgl.Model(gl, meshes[opt.mesh], opt.color, world);
 						});
@@ -485,79 +510,56 @@
 	}
 
 	function getInputActionsHold() {
+		var horizontalSensitivity = clockgl.radians(5);
+		var verticalSensitivity = clockgl.radians(5);
+		var zoomSensitivity = 1
 		return {	
-			37 /*Left*/: function() {
-				var axis = $L([0,camera.pos.e(2),0], [0,-1,0]);
-				camera.pos = camera.pos.rotate(clockgl.radians(5), axis);
-				camera.up = camera.up.rotate(clockgl.radians(5), axis).toUnitVector();
+			37 /* Left */: function() {
+				camera.rotateAround(-horizontalSensitivity, Vector.j);
 			},
-			38 /*Up*/: function() {
-				var ray = camera.look.subtract(camera.pos);
-				var axisDir = ray.cross(camera.up).toUnitVector();
-				var axis = $L([0,0,0], axisDir);
-				var axisNeg = $L([0,0,0], axisDir.x(-1));
-				camera.pos = camera.pos.rotate(clockgl.radians(5), axisNeg);
-				camera.up = camera.up.rotate(clockgl.radians(5), axisNeg).toUnitVector();
+			38 /* Up */: function() {
+				camera.rotateAroundVert(-verticalSensitivity);
 			},
-			39 /*Right*/: function() {
-				var axis = $L([0,camera.pos.e(2),0], [0,1,0]);
-				camera.pos = camera.pos.rotate(clockgl.radians(5), axis);
-				camera.up = camera.up.rotate(clockgl.radians(5), axis).toUnitVector();
+			39 /* Right */: function() {
+				camera.rotateAround(horizontalSensitivity, Vector.j);
 			},
-			40 /*Down*/: function() {
-				var ray = camera.look.subtract(camera.pos);
-				var axisDir = ray.cross(camera.up).toUnitVector();
-				var axis = $L([0,0,0], axisDir);
-				var axisNeg = $L([0,0,0], axisDir.x(-1));
-				camera.pos = camera.pos.rotate(clockgl.radians(5), axis);
-				camera.up = camera.up.rotate(clockgl.radians(5), axis).toUnitVector();
+			40 /* Down */: function() {
+				camera.rotateAroundVert(verticalSensitivity);
 			},
-			65 /*W*/: function() {
+			65 /* A */: function() {
 				var diffuse = lightingDef.diffuse;
-				var cam = diffuse.diffuse_cam;
-				var axis = $L([0,cam.pos.e(2),0], [0,-1,0]);
-				cam.pos = cam.pos.rotate(clockgl.radians(5), axis);
-				cam.up = cam.up.rotate(clockgl.radians(5), axis).toUnitVector();
-				diffuse.diffuse_dir = cam.pos.x(-1);
+				diffuse.diffuse_cam.rotateAround(-horizontalSensitivity, Vector.j);
+				diffuse.diffuse_dir = diffuse.diffuse_cam.pos.x(-1);
 			},
-			87 /*A*/: function() {
+			87 /* W */: function() {
 				var diffuse = lightingDef.diffuse;
-				var cam = diffuse.diffuse_cam;
-				var ray = cam.look.subtract(cam.pos);
-				var axisDir = ray.cross(cam.up).toUnitVector();
-				var axis = $L([0,0,0], axisDir);
-				var axisNeg = $L([0,0,0], axisDir.x(-1));
-				cam.pos = cam.pos.rotate(clockgl.radians(5), axisNeg);
-				cam.up = cam.up.rotate(clockgl.radians(5), axisNeg).toUnitVector();
-				diffuse.diffuse_dir = cam.pos.x(-1);
+				diffuse.diffuse_cam.rotateAroundVert(-verticalSensitivity);
+				diffuse.diffuse_dir = diffuse.diffuse_cam.pos.x(-1);
 			},
-			68 /*S*/: function() {
+			68 /* D */: function() {
 				var diffuse = lightingDef.diffuse;
-				var cam = diffuse.diffuse_cam;
-				var axis = $L([0,cam.pos.e(2),0], [0,1,0]);
-				cam.pos = cam.pos.rotate(clockgl.radians(5), axis);
-				cam.up = cam.up.rotate(clockgl.radians(5), axis).toUnitVector();
-				diffuse.diffuse_dir = cam.pos.x(-1);
+				diffuse.diffuse_cam.rotateAround(horizontalSensitivity, Vector.j);
+				diffuse.diffuse_dir = diffuse.diffuse_cam.pos.x(-1);
 			},
-			83 /*D*/: function() {
+			83 /* S */: function() {
 				var diffuse = lightingDef.diffuse;
-				var cam = diffuse.diffuse_cam;
-				var ray = cam.look.subtract(cam.pos);
-				var axisDir = ray.cross(cam.up).toUnitVector();
-				var axis = $L([0,0,0], axisDir);
-				var axisNeg = $L([0,0,0], axisDir.x(-1));
-				cam.pos = cam.pos.rotate(clockgl.radians(5), axis);
-				cam.up = cam.up.rotate(clockgl.radians(5), axis).toUnitVector();
-				diffuse.diffuse_dir = cam.pos.x(-1);
+				diffuse.diffuse_cam.rotateAroundVert(verticalSensitivity);
+				diffuse.diffuse_dir = diffuse.diffuse_cam.pos.x(-1);
 			},
-			88 /*X*/: function() {
+			107 /* + */: function() {
+				camera.zoom(zoomSensitivity);
+			},
+			109 /* - */: function() {
+				camera.zoom(-zoomSensitivity);
+			},
+			88 /* X */: function() {
 				if(models.xaxis)
 					models.xaxis.toggleShow();
 				if(models.yaxis)
 					models.yaxis.toggleShow();
 				if(models.zaxis)
 					models.zaxis.toggleShow();
-			}
+			},
 		}
 	}
 
