@@ -5,11 +5,14 @@
 
 (function(clockgl, $, undefined) {
 
-	clockgl.drawScene = function(gl, models, attributeLocs, sceneUniforms, uniformsLayout) {
+	clockgl.drawScene = function(gl, sceneObjs, timeDiff, attributeLocs, sceneUniforms, uniformsLayout, uniformsForce) {
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		
-		$.each(models, function(key, model) {
-			model.draw(gl, attributeLocs, sceneUniforms, uniformsLayout);
+		$.each(sceneObjs, function(key, so) {
+			var updateRet = so.update(timeDiff);
+			if(typeof(updateRet) !== 'undefined')
+				console.log(updateRet);
+			so.draw(gl, attributeLocs, sceneUniforms, uniformsLayout, uniformsForce);
 		});
 	}
 

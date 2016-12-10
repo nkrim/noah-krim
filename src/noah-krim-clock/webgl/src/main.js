@@ -13,7 +13,7 @@
 	/** Context
 	----------------------------	*/
 	var BASE = '/src/noah-krim-clock/webgl';	// Base URL
-	/** Models
+	/** Meshes
 	----------------------------	*/
 	var meshesSrcDef = {	// Meshes source definition (key: name, value: {src[, type=Mesh][, uniforms={}][, usage=STATIC_DRAW]})
 		line: {
@@ -40,55 +40,68 @@
 	----------------------------	*/
 	/** SceneObjs definition ({	name: {
 									models: { 
-										name: { mesh[, color=white][, world={base,scale,rot,trans}][, uniforms={}][,options={}] }
+										name: { mesh[, color=white][, world={base,scale,rot,trans}][, colorUsage][, options={}] }
 									}
 									[,world: { base, scale, rot, trans }]
 									[,optionsLayout: { Default values to assign as model options }]
+									[,update: func(time)]
 								}) */
 	var sceneObjsDef = {	
 		// Axes	
 		axes: {
-			xaxis: {
-				mesh: 'axis',
-				color: $V([1.0, 0.0, 0.0, 1.0]),
-			},
-			yaxis: {
-				mesh: 'axis',
-				color: $V([0.0, 1.0, 0.0, 1.0]),
-				world: {
-					rot: Matrix.RotationZ(clockgl.radians(90)),
+			models: {
+				xaxis: {
+					mesh: 'axis',
+					color: $V([1.0, 0.0, 0.0, 1.0]),
 				},
-			},
-			zaxis: {
-				mesh: 'axis',
-				color: $V([0.0, 0.0, 1.0, 1.0]),
-				world: {
-					rot: Matrix.RotationY(clockgl.radians(-90)),
+				yaxis: {
+					mesh: 'axis',
+					color: $V([0.0, 1.0, 0.0, 1.0]),
+					world: {
+						rot: Matrix.RotationZ(clockgl.radians(90)),
+					},
 				},
-			},
-			laxis: {
-				mesh: 'axis',
-				color: $V([1.0, 1.0, 0.0, 1.0]),
+				zaxis: {
+					mesh: 'axis',
+					color: $V([0.0, 0.0, 1.0, 1.0]),
+					world: {
+						rot: Matrix.RotationY(clockgl.radians(-90)),
+					},
+				},
+				laxis: {
+					mesh: 'axis',
+					color: $V([1.0, 1.0, 0.0, 1.0]),
+				},
 			},
 		},
 		// Sourced
 		clock0: {
-			line0: {
-				mesh: 'line',
-				color: $V([1.0, 1.0, 1.0, 1.0]),
-				world: {
-					scale: $V([0.1, 0.1, 0.1]),
-					trans: $V([0.0,-6.0, 0.0]),
+			models: {
+				line0: {
+					mesh: 'line',
+					color: $V([1.0, 1.0, 1.0, 1.0]),
+					world: {
+						base: new clockgl.World(null, null, null, $V([0, 2, 0])),
+						scale: $V([0.85, 1, 1]),
+					},
+				},
+				line1: {
+					mesh: 'line',
+					color: $V([1.0, 1.0, 1.0, 1.0]),
+					world: {
+						scale: $V([0.8, 0.8, 0.8]),
+						rot: Matrix.RotationZ(-clockgl.radians(60)), 
+					},
 				},
 			},
-			line1: {
-				mesh: 'line',
-				color: $V([1.0, 1.0, 1.0, 1.0]),
-				world: {
-					scale: $V([0.1, 0.1, 0.1]),
-					trans: $V([0.0,-6.0, 0.0]),
-				},
-			}
+			world: {
+				scale: $V([0.1, 0.1, 0.1]),
+			},
+			update: function(timeDiff) {
+				var secondsSpeed = -timeDiff * Math.PI / 500;
+				this.models.line1.model.world.rotateZ(secondsSpeed);
+				this.models.line0.model.world.rotateZ(secondsSpeed / 6);
+			},
 		},
 	};
 	/** View
@@ -100,7 +113,7 @@
 	var zfar = 500.0;
 	/** Camera initials
 	----------------------------	*/
-	var cam_pos = $V([10.0, 5.0, 25.0]);
+	var cam_pos = $V([15.0, 10.0, 40.0]);
 	var cam_look = $V([0.0, 0.0, 0.0]);
 	var cam_up = $V([0.0, 1.0, 0.0]);
 	/** Global lighting
@@ -157,7 +170,7 @@
 				default: lightingDef.diffuse.diffuse_int,
 			},
 		},
-		sceneobj: {
+		sceneObj: {
 			objWorld: {
 				type: clockgl.UNIFORM.MAT4F,
 				default: Matrix.I(4),
@@ -220,10 +233,12 @@
 	/** Uniforms and locations
 	----------------------------	*/
 	var uniformsLayout; 
+	var uniformsForce;
 	var sceneUniforms;
 	/** Run instance
 	----------------------------	*/
 	var runInterval;
+	var prevTime;
 	/** Input handler
 	----------------------------	*/
 	var handler;
@@ -282,6 +297,7 @@
 								return uniform;
 							});
 						});
+						uniformsForce = {scene: {}, sceneObj: {}, model: {}, mesh: {}};
 						updateSceneUniforms();
 						console.log(sceneUniforms);
 					}
@@ -306,11 +322,24 @@
 						console.log(meshes);
 
 						// Construct models from modelsDef
-						sceneObjs = clockgl.mapObj(sceneObjsDef, function(opt) {
-							var world = opt.world ? new clockgl.World(opt.world.base, opt.world.scale, opt.world.rotation || opt.world.rot, opt.world.translation || opt.world.trans) : undefined;
-							return new clockgl.Model(gl, meshes[opt.mesh], opt.color, world);
+						sceneObjs = clockgl.mapObj(sceneObjsDef, function(so) {
+							var models = {};
+							var modelsOptionsDef = {};
+							$.each(so.models || {}, function(name, mo) {
+								var world = mo.world ? 
+												new clockgl.World(mo.world.base, mo.world.scale, mo.world.rotation || mo.world.rot, mo.world.translation || mo.world.trans) 
+												: undefined;
+								models[name] = new clockgl.Model(gl, meshes[mo.mesh], mo.color, world, mo.colorUsage);
+								if(mo.options)
+									modelsOptionsDef[name] = mo.options;
+							});
+							var world = so.world ? 
+											new clockgl.World(so.world.base, so.world.scale, so.world.rotation || so.world.rot, so.world.translation || so.world.trans) 
+											: undefined;
+							var obj = new clockgl.SceneObj(models, world, so.optionsLayout, modelsOptionsDef, so.update);
+							return obj;
 						});
-						console.log(models);
+						console.log(sceneObjs);
 					}
 					catch (e) {
 						return $.Deferred().reject(e);
@@ -332,7 +361,7 @@
 						clockgl.uniformsLayout = uniformsLayout;
 						clockgl.sceneUniforms = sceneUniforms;
 						clockgl.meshes = meshes;
-						clockgl.models = models;
+						clockgl.sceneObjs = sceneObjs;
 					}
 				})
 				.done(function() {
@@ -371,11 +400,13 @@
 				mesh.deleteBuffers(gl);
 			});
 		}
-		if(models) {
-			$.each(models, function(name, model) {
-				if(model.mesh) {
-					mesh.deleteBuffers();
-				}
+		if(sceneObjs) {
+			$.each(sceneObjs, function(name, so) {
+				$.each(sceneObjs.models, function(name, mo) {
+					if(mo.model.mesh) {
+						mo.model.deleteBuffers(gl);
+					}
+				})
 			});
 		}
 
@@ -392,7 +423,7 @@
 		camera 			= undefined;
 		projection 		= undefined;
 		meshes 			= undefined;
-		models 			= undefined;
+		sceneObjs		= undefined;
 		attributesLoc	= undefined;
 		uniformsLayout 	= undefined;
 		sceneUniforms 	= undefined;
@@ -406,9 +437,9 @@
 
 	/** Private functions
 	========================	*/
-	clockgl._initUniformsFromContextLayout = function(uniformsContextLayout, uniformsContextDef) {
+	clockgl._initUniformsFromContextLayout = function(uniformsContextLayout, uniformsContextDef, uniformsContextForce) {
 		return clockgl.mapObj(uniformsContextLayout, function(uniformDefault, name) {
-			var uniformVal = uniformsContextDef[name];
+			var uniformVal = uniformsContextForce[name] || uniformsContextDef[name];
 			var uniform = uniformDefault.clone(uniformVal);
 			return uniform;
 		});
@@ -464,16 +495,26 @@
 				return def;
 			})
 		));
-		sceneUniforms = clockgl._initUniformsFromContextLayout(uniformsLayout.scene, sceneUniformsDef);
+		sceneUniforms = clockgl._initUniformsFromContextLayout(uniformsLayout.scene, sceneUniformsDef, uniformsForce.scene);
 	}
 
 	function updateScene() {
 		try {
-			handler.performActions(getInputActionsHold(), getInputActionsDown(), getInputActionsUp());
+			// Set time vars
+			var curTime = new Date();
+			if(!prevTime)
+				prevTime = curTime;
+			var timeDiff = curTime - prevTime;
+
+			// Perform keyboard actions
+			handler.performActions(getInputActionsHold(curTime), getInputActionsDown(curTime), getInputActionsUp(curTime));
+
+			// Set scene uniforms
 			updateSceneUniforms();
 
+			// TEMP Diffuse lighting stuff
 			var halfpi = Math.PI/2;
-			var laxisWorld = models.laxis.world;
+			var laxisWorld = sceneObjs.axes.models.laxis.model.world;
 			var pos = lightingDef.diffuse.diffuse_cam.pos.toUnitVector();
 			var ref = $V([1,0,0]);
 			laxisWorld.resetRotation();
@@ -486,7 +527,12 @@
 				laxisWorld.rotate(angle, axis);
 			}
 
-			clockgl.drawScene(gl, models, attributeLocs, sceneUniforms, uniformsLayout);
+			// Draw scene
+			clockgl.drawScene(gl, sceneObjs, timeDiff, attributeLocs, sceneUniforms, uniformsLayout, uniformsForce);
+
+			// Set prevTime
+			prevTime = curTime;
+
 			// Export important variables if debug is true
 			if(DEBUG) {
 				clockgl.canvas = canvas;
@@ -498,7 +544,7 @@
 				clockgl.uniformsLayout = uniformsLayout;
 				clockgl.sceneUniforms = sceneUniforms;
 				clockgl.meshes = meshes;
-				clockgl.models = models;
+				clockgl.sceneObjs = sceneObjs;
 				//TEMP
 				clockgl.diffuseCam = lightingDef.diffuse.diffuse_cam;
 			}
@@ -509,7 +555,7 @@
 		}
 	}
 
-	function getInputActionsHold() {
+	function getInputActionsHold(curTime) {
 		var horizontalSensitivity = clockgl.radians(5);
 		var verticalSensitivity = clockgl.radians(5);
 		var zoomSensitivity = 1
@@ -552,23 +598,33 @@
 			109 /* - */: function() {
 				camera.zoom(-zoomSensitivity);
 			},
-			88 /* X */: function() {
-				if(models.xaxis)
-					models.xaxis.toggleShow();
-				if(models.yaxis)
-					models.yaxis.toggleShow();
-				if(models.zaxis)
-					models.zaxis.toggleShow();
-			},
 		}
 	}
 
-	function getInputActionsDown() {
+	function getInputActionsDown(curTime) {
 		return {};
 	}
 
-	function getInputActionsUp() {
-		return {};
+	function getInputActionsUp(curTime) {
+		return {
+			76 /* L */: function() {
+				if(uniformsForce.mesh.lighting_on)
+					uniformsForce.mesh.lighting_on.elements[0] ^= 1;
+				else
+					uniformsForce.mesh.lighting_on = clockgl.UNIFORM_FALSE;
+			},
+			88 /* X */: function() {
+				var axes = sceneObjs.axes.models;
+				if(axes.xaxis)
+					axes.xaxis.hide = !axes.xaxis.hide;
+				if(axes.yaxis)
+					axes.yaxis.hide = !axes.yaxis.hide;
+				if(axes.zaxis)
+					axes.zaxis.hide = !axes.zaxis.hide;
+				if(axes.laxis)
+					axes.laxis.hide = !axes.laxis.hide;
+			},
+		};
 	}
 
 }(window.clockgl = window.clockgl || {}, jQuery));

@@ -87,13 +87,13 @@
 		gl.vertexAttribPointer(attributes.position, 3, gl.FLOAT, false, 0, 0);
 	}
 	// Loops through uniforms dict and sets each, does not need to be overriden in most cases
-	AbstractMesh.prototype.setUniforms = function(gl, modelSceneUniforms, uniformsLayout) {
+	AbstractMesh.prototype.setUniforms = function(gl, modelSceneUniforms, uniformsLayout, uniformsForce) {
 		// Set argument (model/scene) uniforms
 		$.each(modelSceneUniforms, function(name, uniform) {
 			uniform.set(gl);
 		});
 		// Set mesh uniforms
-		var meshUniforms = clockgl._initUniformsFromContextLayout(uniformsLayout.mesh, this.uniformsDef);
+		var meshUniforms = clockgl._initUniformsFromContextLayout(uniformsLayout.mesh, this.uniformsDef, uniformsForce.mesh);
 		$.each(meshUniforms, function(name, uniform) {
 			uniform.set(gl);
 		});
@@ -104,11 +104,11 @@
 		gl.drawArrays(this.mode, 0, this.length);
 	}
 	// Default main draw method, uses the above methods in order, usually does not need to be overriden, one of the above should be, preferably
-	AbstractMesh.prototype.draw = function(gl, attributes, cbuf, modelSceneUniforms, uniformsLayout) {
+	AbstractMesh.prototype.draw = function(gl, attributes, cbuf, modelSceneUniforms, uniformsLayout, uniformsForce) {
 		// Bind for draw
 		this.bindForDraw(gl, attributes, cbuf);
 		// Set uniforms
-		this.setUniforms(gl, modelSceneUniforms, uniformsLayout);
+		this.setUniforms(gl, modelSceneUniforms, uniformsLayout, uniformsForce);
 		// Draw mesh
 		this.drawMesh(gl);
 	}

@@ -12,11 +12,11 @@
 
 	/** Model object
 	================	*/
-	Model = function(gl, mesh, color, world, usage) {
+	Model = function(gl, mesh, color, world, colorUsage) {
 		// Set object mesh
 		this.mesh = mesh;
 		// Set color (default is white)
-		this.setColor(gl, color || [1.0, 1.0, 1.0, 1.0], usage);
+		this.setColor(gl, color || [1.0, 1.0, 1.0, 1.0], colorUsage);
 		// Set world matrix (default is identity)
 		this.world = world || new clockgl.World();
 	}
@@ -77,11 +77,18 @@
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.cbuf);
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colArr), usage || gl.STATIC_DRAW);
 	}
+	Model.prototype.deleteBuffers = function(gl) {
+		if(this.cbuf)
+			gl.deleteBuffers(cbuf);
+		$.each(this.meshes || {}, function(name, mesh) {
+			mesh.deleteBuffers(gl);
+		})
+	}
 
 
 	/** Draw methods
 	----------------	*/
-	Model.prototype.draw = function(gl, attributes, uniforms, uniformsLayout) {
+	Model.prototype.draw = function(gl, attributes, uniforms, uniformsLayout, uniformsForce) {
 		//if(this.hide)
 			//return;
 		// Add model uniforms/defaults to uniforms dict
@@ -91,9 +98,9 @@
 			rotation: this.world.rotationMatrix(),
 			translation: this.world.translationMatrix(),
 		}
-		$.extend(uniforms, clockgl._initUniformsFromContextLayout(uniformsLayout.model, modelUniformsDef));
+		$.extend(uniforms, clockgl._initUniformsFromContextLayout(uniformsLayout.model, modelUniformsDef, uniformsForce.model));
 		// Draw model's mesh
-		this.mesh.draw(gl, attributes, this.cbuf, uniforms, uniformsLayout);
+		this.mesh.draw(gl, attributes, this.cbuf, uniforms, uniformsLayout, uniformsForce);
 	}
 
 
