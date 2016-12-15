@@ -48,5 +48,13 @@
 	clockgl.degrees = function(radians) {
 		return radians * (180.0/Math.PI);
 	}
+
+	clockgl.halfAngleDir = function(v, u) {
+		if(v.isParallelTo(u))
+			return v.toUnitVector();
+		if(v.isAntiparallelTo(u))
+			return Vector.Zero(3);
+		return Matrix.Rotation(v.angleFrom(u)/2, v.cross(u)).x(v).toUnitVector();
+	}
 	
 }(window.clockgl = window.clockgl || {}, jQuery));

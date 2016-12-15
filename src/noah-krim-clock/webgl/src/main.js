@@ -18,7 +18,18 @@
 	var meshesSrcDef = {	// Meshes source definition (key: name, value: {src[, type=Mesh][, uniforms={}][, usage=STATIC_DRAW]})
 		line: {
 			src: BASE+'/data/LineSmall.obj',
-			mode: 'TRIANGLES',
+			uniforms: {
+				lighting_on: clockgl.UNIFORM_TRUE,
+			},
+		},
+		clockFrame: {
+			src: BASE+'/data/ClockFrame.obj',
+			uniforms: {
+				lighting_on: clockgl.UNIFORM_TRUE,
+			},
+		},
+		clockFace: {
+			src: BASE+'/data/ClockFace.obj',
 			uniforms: {
 				lighting_on: clockgl.UNIFORM_TRUE,
 			},
@@ -40,10 +51,11 @@
 	----------------------------	*/
 	/** SceneObjs definition ({	name: {
 									models: { 
-										name: { mesh[, color=white][, world={base,scale,rot,trans}][, colorUsage][, options={}] }
+										name: { mesh[, color=white][, world={base,scale,rot,trans}][, uniforms][, colorUsage][, options={}] }
 									}
 									[,world: { base, scale, rot, trans }]
 									[,optionsLayout: { Default values to assign as model options }]
+									[,uniforms]
 									[,update: func(time)]
 								}) */
 	var sceneObjsDef = {	
@@ -77,20 +89,47 @@
 		// Sourced
 		clock0: {
 			models: {
-				line0: {
+				lineLong: {
 					mesh: 'line',
-					color: $V([1.0, 1.0, 1.0, 1.0]),
+					color: $V([0.9, 0.9, 0.9, 1.0]),
+					uniforms: {
+						specular_exp: $V([2]),
+					},
 					world: {
-						base: new clockgl.World(null, null, null, $V([0, 2, 0])),
-						scale: $V([0.85, 1, 1]),
+						//base: new clockgl.World(null, null, null, $V([0, 2, 0])),
+						scale: $V([0.85, 0.95, 0.85]),
 					},
 				},
-				line1: {
+				lineShort: {
 					mesh: 'line',
-					color: $V([1.0, 1.0, 1.0, 1.0]),
+					color: $V([0.9, 0.9, 0.9, 1.0]),
+					uniforms: {
+						specular_exp: $V([2]),
+					},
 					world: {
-						scale: $V([0.8, 0.8, 0.8]),
+						scale: $V([0.85, 0.8, 0.85]),
 						rot: Matrix.RotationZ(-clockgl.radians(60)), 
+					},
+				},
+				clockFrame: {
+					mesh: 'clockFrame',
+					color: $V([0.9, 0.9, 0.9, 1.0]),
+					uniforms: {
+						specular_exp: $V([2]),
+					},
+					world: {
+						
+					},
+				},
+				clockFace: {
+					mesh: 'clockFace',
+					color: $V([0.2, 0.2, 0.2, 1.0]),
+					uniforms: {
+						specular_exp: $V([16]),
+						specular_int: $V([0.5]),
+					},
+					world: {
+						
 					},
 				},
 			},
@@ -99,8 +138,8 @@
 			},
 			update: function(timeDiff) {
 				var secondsSpeed = -timeDiff * Math.PI / 500;
-				this.models.line1.model.world.rotateZ(secondsSpeed);
-				this.models.line0.model.world.rotateZ(secondsSpeed / 6);
+				this.models.lineShort.model.world.rotateZ(secondsSpeed);
+				this.models.lineLong.model.world.rotateZ(secondsSpeed / 6);
 			},
 		},
 	};
@@ -121,94 +160,118 @@
 	var lightingDef = {
 		ambient: {
 			ambient_col: $V([1.0, 1.0, 1.0]),
-			ambient_int: $V([0.5]),
+			ambient_int: $V([0.3]),
 		},
 		diffuse: {
 			diffuse_cam: new clockgl.Camera($V([-1,1,1]),$V([0,0,0])), //TEMP
 			diffuse_dir: $V([1.0, -.0, -1.0]).toUnitVector(),
 			diffuse_col: $V([1.0, 1.0, 1.0]), 
-			diffuse_int: $V([0.5]),
+			diffuse_int: $V([0.4]),
+		},
+		specular: {
+			specular_col: $V([1.0, 1.0, 1.0]),
+			specular_int_default: $V([0.4]),
 		},
 	};
 	/** Shader definition
 	----------------------------	*/
-	var vertexShaderSrc = '/src/noah-krim-clock/webgl/shaders/shader.vsh';
-	var fragmentShaderSrc = '/src/noah-krim-clock/webgl/shaders/shader.fsh';
-	var attributeNames = ['position', 'normal', 'color'];
-	var uniformsLayoutDef = {	// {key: name, value: {type, default}}
-		scene: {
-			projection: 	{
-				type: clockgl.UNIFORM.MAT4F,
-				default: makePerspective(fovy, aspect, znear, zfar),
-			},
-			modelView: 		{
-				type: clockgl.UNIFORM.MAT4F,
-				default: Matrix.I(4),
-			},
-			/*camPos: 		{
-				type: clockgl.UNIFORM.VEC3F,
-				default: cam_pos,
-			},*/
-			ambient_col: {
-				type: clockgl.UNIFORM.VEC3F,
-				default: lightingDef.ambient.ambient_col,
-			},
-			ambient_int: {
-				type: clockgl.UNIFORM.VEC1F,
-				default: lightingDef.ambient.ambient_int,
-			},
-			diffuse_dir: 	{
-				type: clockgl.UNIFORM.VEC3F,
-				default: lightingDef.diffuse.diffuse_dir,
-			}, 
-			diffuse_col: 	{
-				type: clockgl.UNIFORM.VEC3F,
-				default: lightingDef.diffuse.diffuse_col,
-			},
-			diffuse_int: 	{
-				type: clockgl.UNIFORM.VEC1F,
-				default: lightingDef.diffuse.diffuse_int,
+	var shaderProgramsDef = {
+		draw: {
+			vsh: '/src/noah-krim-clock/webgl/shaders/draw.vsh',
+			fsh: '/src/noah-krim-clock/webgl/shaders/draw.fsh',
+			attributes: ['position', 'normal', 'color'],
+			uniforms: {
+				scene: {
+					projection: 	{
+						type: clockgl.UNIFORM.MAT4F,
+						default: makePerspective(fovy, aspect, znear, zfar),
+					},
+					modelView: 		{
+						type: clockgl.UNIFORM.MAT4F,
+						default: Matrix.I(4),
+					},
+					camPos: 	{
+						type: clockgl.UNIFORM.VEC3F,
+						default: cam_pos,
+					},
+					ambient_col: 	{
+						type: clockgl.UNIFORM.VEC3F,
+						default: lightingDef.ambient.ambient_col,
+					},
+					ambient_int: 	{
+						type: clockgl.UNIFORM.VEC1F,
+						default: lightingDef.ambient.ambient_int,
+					},
+					diffuse_dir: 	{
+						type: clockgl.UNIFORM.VEC3F,
+						default: lightingDef.diffuse.diffuse_dir,
+					}, 
+					diffuse_col: 	{
+						type: clockgl.UNIFORM.VEC3F,
+						default: lightingDef.diffuse.diffuse_col,
+					},
+					diffuse_int: 	{
+						type: clockgl.UNIFORM.VEC1F,
+						default: lightingDef.diffuse.diffuse_int,
+					},
+					specular_col: {
+						type: clockgl.UNIFORM.VEC3F,
+						default: lightingDef.specular.specular_col,
+					},
+				},
+				sceneObj: {
+					objWorld: {
+						type: clockgl.UNIFORM.MAT4F,
+						default: Matrix.I(4),
+					},
+				},
+				model: {
+					base: 			{
+						type: clockgl.UNIFORM.MAT4F,
+						default: Matrix.I(4),
+					},
+					scale: 			{
+						type: clockgl.UNIFORM.MAT4F,
+						default: Matrix.I(4),
+					},
+					rotation: 			{
+						type: clockgl.UNIFORM.MAT4F,
+						default: Matrix.I(4),
+					},
+					translation: 			{
+						type: clockgl.UNIFORM.MAT4F,
+						default: Matrix.I(4),
+					},
+					specular_exp: 	{
+						type: clockgl.UNIFORM.VEC1F,
+						default: $V([0]),
+					},
+					specular_int: 	{
+						type: clockgl.UNIFORM.VEC1F,
+						default: lightingDef.specular.specular_int_default,
+					},
+				},
+				mesh: {
+					lighting_on: 	{
+						type: clockgl.UNIFORM.VEC1I,
+						default: clockgl.UNIFORM_FALSE,
+					},
+					ambient_on: 	{
+						type: clockgl.UNIFORM.VEC1I,
+						default: clockgl.UNIFORM_TRUE,
+					},
+					diffuse_on: 	{
+						type: clockgl.UNIFORM.VEC1I,
+						default: clockgl.UNIFORM_TRUE,
+					},
+					specular_on: 	{
+						type: clockgl.UNIFORM.VEC1I,
+						default: clockgl.UNIFORM_TRUE,
+					},
+				},
 			},
 		},
-		sceneObj: {
-			objWorld: {
-				type: clockgl.UNIFORM.MAT4F,
-				default: Matrix.I(4),
-			},
-		},
-		model: {
-			base: 			{
-				type: clockgl.UNIFORM.MAT4F,
-				default: Matrix.I(4),
-			},
-			scale: 			{
-				type: clockgl.UNIFORM.MAT4F,
-				default: Matrix.I(4),
-			},
-			rotation: 			{
-				type: clockgl.UNIFORM.MAT4F,
-				default: Matrix.I(4),
-			},
-			translation: 			{
-				type: clockgl.UNIFORM.MAT4F,
-				default: Matrix.I(4),
-			},
-		},
-		mesh: {
-			lighting_on: 	{
-				type: clockgl.UNIFORM.VEC1I,
-				default: clockgl.UNIFORM_FALSE,
-			},
-			ambient_on: 	{
-				type: clockgl.UNIFORM.VEC1I,
-				default: clockgl.UNIFORM_TRUE,
-			},
-			diffuse_on: 	{
-				type: clockgl.UNIFORM.VEC1I,
-				default: clockgl.UNIFORM_TRUE,
-			},
-		},
-	};
+	}
 
 	/**	Private variables
 	============================	*/
@@ -218,7 +281,8 @@
 	var gl;
 	/** Shader programs
 	----------------------------	*/
-	var shaderProgram;
+	var shaderPrograms;
+	var curProgram;
 	/** View variables
 	----------------------------	*/
 	var camera;
@@ -227,12 +291,8 @@
 	----------------------------	*/
 	var meshes;
 	var sceneObjs;
-	/** Attribute locations
-	----------------------------	*/
-	var attributeLocs;
 	/** Uniforms and locations
 	----------------------------	*/
-	var uniformsLayout; 
 	var uniformsForce;
 	var sceneUniforms;
 	/** Run instance
@@ -267,39 +327,17 @@
 			handler = new clockgl.InputHandler(canvas);
 
 			// Shaders deferred actions
-			var shaderDeferred = clockgl.initShaderProgram(gl, vertexShaderSrc, fragmentShaderSrc)
-				.then(function(sp) {
+			var shaderDeferred = clockgl.loadShaderPrograms(gl, shaderProgramsDef)
+				.then(function(sps) {
 					try {
 						// Set the shaderProgram
-						shaderProgram = sp;
-
-						// Initialize the shaders
-						gl.useProgram(shaderProgram);
-
-						// Get and enable attribute locations
-						attributeLocs = {};
-						$.each(attributeNames, function(index, name) {
-							var loc = gl.getAttribLocation(shaderProgram, name);
-							gl.enableVertexAttribArray(loc);
-							attributeLocs[name] = loc;
-						});
-						console.log(attributeLocs);
+						shaderPrograms = sps;
 
 						// Create projection/modelView matrices
 						projection = makePerspective(fovy, aspect, znear, zfar);
 
-						// Get uniform locations
-						uniformsLayout = {};
-						$.each(uniformsLayoutDef, function(context, uniformsDef) {
-							uniformsLayout[context] = clockgl.mapObj(uniformsDef, function(opts, name) {
-								var loc = gl.getUniformLocation(shaderProgram, name);
-								var uniform = new clockgl.Uniform(opts.type, loc, opts.default);
-								return uniform;
-							});
-						});
+						// Uniforms actions
 						uniformsForce = {scene: {}, sceneObj: {}, model: {}, mesh: {}};
-						updateSceneUniforms();
-						console.log(sceneUniforms);
 					}
 					catch (e) {
 						return $.Deferred().reject(e);
@@ -329,14 +367,14 @@
 								var world = mo.world ? 
 												new clockgl.World(mo.world.base, mo.world.scale, mo.world.rotation || mo.world.rot, mo.world.translation || mo.world.trans) 
 												: undefined;
-								models[name] = new clockgl.Model(gl, meshes[mo.mesh], mo.color, world, mo.colorUsage);
+								models[name] = new clockgl.Model(gl, meshes[mo.mesh], mo.color, world, mo.uniforms, mo.colorUsage);
 								if(mo.options)
 									modelsOptionsDef[name] = mo.options;
 							});
 							var world = so.world ? 
 											new clockgl.World(so.world.base, so.world.scale, so.world.rotation || so.world.rot, so.world.translation || so.world.trans) 
 											: undefined;
-							var obj = new clockgl.SceneObj(models, world, so.optionsLayout, modelsOptionsDef, so.update);
+							var obj = new clockgl.SceneObj(models, world, so.optionsLayout, modelsOptionsDef, so.uniforms, so.update);
 							return obj;
 						});
 						console.log(sceneObjs);
@@ -354,11 +392,9 @@
 						console.log('Debug is on, exporting variables')
 						clockgl.canvas = canvas;
 						clockgl.gl = gl;
-						clockgl.shaderProgram = shaderProgram;
+						clockgl.shaderPrograms = shaderPrograms;
 						clockgl.camera = camera;
 						clockgl.projection = projection;
-						clockgl.attributeLocs = attributeLocs;
-						clockgl.uniformsLayout = uniformsLayout;
 						clockgl.sceneUniforms = sceneUniforms;
 						clockgl.meshes = meshes;
 						clockgl.sceneObjs = sceneObjs;
@@ -410,22 +446,19 @@
 			});
 		}
 
-		if(shaderProgram) {
-			$.each(shaderProgram.trackedObject.shaders, function(index, shader) {
-				clockgl.deleteShader(shader);
+		if(shaderPrograms) {
+			$.each(shaderPrograms, function(name, cp) {
+				cp.delete(gl);
 			});
-			clockgl.deleteProgram(shaderProgram);
 		}
 
 		canvas 			= undefined;
 		gl 				= undefined;
-		shaderProgram 	= undefined;
+		shaderPrograms 	= undefined;
 		camera 			= undefined;
 		projection 		= undefined;
 		meshes 			= undefined;
 		sceneObjs		= undefined;
-		attributesLoc	= undefined;
-		uniformsLayout 	= undefined;
 		sceneUniforms 	= undefined;
 		runInterval 	= undefined;
 
@@ -483,19 +516,21 @@
 		return webgl;
 	}
 
-	function updateSceneUniforms() {
+	function getSceneUniformsDef() {
 		// Init scene uniforms
 		var sceneUniformsDef = {
 			projection: projection,
 			modelView: camera.modelView(),
 			camPos: camera.pos,
+			specular_half: clockgl.halfAngleDir(camera.lookVector(), lightingDef.diffuse.diffuse_cam.lookVector()).x(-1),
 		}
+		lightingDef.diffuse.diffuse_dir = lightingDef.diffuse.diffuse_cam.lookVector();
 		$.extend.apply(this, [sceneUniformsDef].concat( 
 			$.map(lightingDef, function(def, context) {
 				return def;
 			})
 		));
-		sceneUniforms = clockgl._initUniformsFromContextLayout(uniformsLayout.scene, sceneUniformsDef, uniformsForce.scene);
+		return sceneUniformsDef;
 	}
 
 	function updateScene() {
@@ -508,9 +543,6 @@
 
 			// Perform keyboard actions
 			handler.performActions(getInputActionsHold(curTime), getInputActionsDown(curTime), getInputActionsUp(curTime));
-
-			// Set scene uniforms
-			updateSceneUniforms();
 
 			// TEMP Diffuse lighting stuff
 			var halfpi = Math.PI/2;
@@ -528,7 +560,7 @@
 			}
 
 			// Draw scene
-			clockgl.drawScene(gl, sceneObjs, timeDiff, attributeLocs, sceneUniforms, uniformsLayout, uniformsForce);
+			clockgl.drawScene(gl, sceneObjs, timeDiff, shaderPrograms, getSceneUniformsDef(), uniformsForce);
 
 			// Set prevTime
 			prevTime = curTime;
@@ -537,11 +569,9 @@
 			if(DEBUG) {
 				clockgl.canvas = canvas;
 				clockgl.gl = gl;
-				clockgl.shaderProgram = shaderProgram;
+				clockgl.shaderPrograms = shaderPrograms;
 				clockgl.camera = camera;
 				clockgl.projection = projection;
-				clockgl.attributeLocs = attributeLocs;
-				clockgl.uniformsLayout = uniformsLayout;
 				clockgl.sceneUniforms = sceneUniforms;
 				clockgl.meshes = meshes;
 				clockgl.sceneObjs = sceneObjs;
@@ -575,22 +605,18 @@
 			65 /* A */: function() {
 				var diffuse = lightingDef.diffuse;
 				diffuse.diffuse_cam.rotateAround(-horizontalSensitivity, Vector.j);
-				diffuse.diffuse_dir = diffuse.diffuse_cam.pos.x(-1);
 			},
 			87 /* W */: function() {
 				var diffuse = lightingDef.diffuse;
 				diffuse.diffuse_cam.rotateAroundVert(-verticalSensitivity);
-				diffuse.diffuse_dir = diffuse.diffuse_cam.pos.x(-1);
 			},
 			68 /* D */: function() {
 				var diffuse = lightingDef.diffuse;
 				diffuse.diffuse_cam.rotateAround(horizontalSensitivity, Vector.j);
-				diffuse.diffuse_dir = diffuse.diffuse_cam.pos.x(-1);
 			},
 			83 /* S */: function() {
 				var diffuse = lightingDef.diffuse;
 				diffuse.diffuse_cam.rotateAroundVert(verticalSensitivity);
-				diffuse.diffuse_dir = diffuse.diffuse_cam.pos.x(-1);
 			},
 			107 /* + */: function() {
 				camera.zoom(zoomSensitivity);

@@ -7,7 +7,7 @@
 
 	/** Base SceneObj definition
 	===============================	*/
-	var SceneObj = function(models, world, modelOptionsLayout, modelOptionsDef, updateFunc) {
+	var SceneObj = function(models, world, modelOptionsLayout, modelOptionsDef, sceneObjUniformsDef, updateFunc) {
 		// Assign defaults
 		models = models || {};
 		world = world || new clockgl.World;
@@ -25,6 +25,9 @@
 
 		// Set world matrix
 		this.world = world;
+
+		// Set uniforms definition
+		this.uniformsDef = sceneObjUniformsDef || {};
 
 		// Set updateFunc
 		this.updateFunc = updateFunc || function() {};
@@ -57,7 +60,7 @@
 	----------------	*/
 	SceneObj.prototype.draw = function(gl, attributes, uniforms, uniformsLayout, uniformsForce) {
 		// Add sceneobj uniforms/defaults to uniforms dict
-		var sceneObjUniformsDef = this.getUniformsDef();
+		var sceneObjUniformsDef = $.extend(this.getUniformsDef(), this.uniformsDef);
 		$.extend(uniforms, clockgl._initUniformsFromContextLayout(uniformsLayout.sceneObj, sceneObjUniformsDef, uniformsForce.sceneObj));
 		// Draw models
 		$.each(this.models, (function(name, modelObj) {

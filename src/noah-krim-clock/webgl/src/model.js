@@ -12,13 +12,15 @@
 
 	/** Model object
 	================	*/
-	Model = function(gl, mesh, color, world, colorUsage) {
+	Model = function(gl, mesh, color, world, modelUniformsDef, colorUsage) {
 		// Set object mesh
 		this.mesh = mesh;
 		// Set color (default is white)
 		this.setColor(gl, color || [1.0, 1.0, 1.0, 1.0], colorUsage);
 		// Set world matrix (default is identity)
 		this.world = world || new clockgl.World();
+		// Set uniforms definition
+		this.uniformsDef = modelUniformsDef || {};
 	}
 
 
@@ -92,12 +94,12 @@
 		//if(this.hide)
 			//return;
 		// Add model uniforms/defaults to uniforms dict
-		var modelUniformsDef = {
+		var modelUniformsDef = $.extend({
 			base: this.world.baseMatrix(),
 			scale: this.world.scaleMatrix(),
 			rotation: this.world.rotationMatrix(),
 			translation: this.world.translationMatrix(),
-		}
+		}, this.uniformsDef);
 		$.extend(uniforms, clockgl._initUniformsFromContextLayout(uniformsLayout.model, modelUniformsDef, uniformsForce.model));
 		// Draw model's mesh
 		this.mesh.draw(gl, attributes, this.cbuf, uniforms, uniformsLayout, uniformsForce);
