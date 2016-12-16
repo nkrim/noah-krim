@@ -41,14 +41,14 @@
 			objWorld: this.world.toMatrix(),
 		};
 	}
-	SceneObj.prototype.drawModelObj = function(modelObj, gl, attributes, uniforms, uniformsLayout, uniformsForce) {
+	SceneObj.prototype.drawModelObj = function(modelObj, gl, shaderPrograms, uniforms, uniformsForce) {
 		// Pre-draw actions
 		if(modelObj.hide)
 			return;
 		if(!modelObj.sceneWorld)
 			uniforms = $.extend({}, uniforms, {objWorld: Matrix.I(4)});
 		// Draw
-		modelObj.model.draw(gl, attributes, uniforms, uniformsLayout, uniformsForce);
+		modelObj.model.draw(gl, shaderPrograms, uniforms, uniformsForce);
 		// Post-draw actions
 	}
 	SceneObj.prototype.update = function(time) {
@@ -58,14 +58,45 @@
 
 	/** Base methods
 	----------------	*/
-	SceneObj.prototype.draw = function(gl, attributes, uniforms, uniformsLayout, uniformsForce) {
+	SceneObj.prototype.draw = function(gl, shaderPrograms, uniforms, uniformsForce) {
 		// Add sceneobj uniforms/defaults to uniforms dict
 		var sceneObjUniformsDef = $.extend(this.getUniformsDef(), this.uniformsDef);
-		$.extend(uniforms, clockgl._initUniformsFromContextLayout(uniformsLayout.sceneObj, sceneObjUniformsDef, uniformsForce.sceneObj));
+		$.extend(uniforms, clockgl._initUniformsFromContextLayout(shaderPrograms.uniformsLayout.sceneObj, sceneObjUniformsDef, uniformsForce.sceneObj));
 		// Draw models
 		$.each(this.models, (function(name, modelObj) {
-			this.drawModelObj(modelObj, gl, attributes, uniforms, uniformsLayout, uniformsForce);
+			this.drawModelObj(modelObj, gl, shaderPrograms, uniforms, uniformsForce);
 		}).bind(this));
+	}
+
+	SceneObj.prototype.show = function(gl, modelName) {
+		$.each(this.models, function(name, model) {
+			model.hide = false;
+		});
+	}
+	SceneObj.prototype.hide = function(gl, modelName) {
+		$.each(this.models, function(name, model) {
+			model.hide = true;
+		});
+	}
+
+	SceneObj.prototype.showModel = function(gl, modelName) {
+		var model = this.models[modelName];
+		if(model)
+			model.hide = false;
+	}
+	SceneObj.prototype.hideModel = function(gl, modelName) {
+		var model = this.models[modelName];
+		if(model)
+			model.hide = true;
+	}
+	SceneObj.prototype.toggleModel = function(gl, modelName, state) {
+		var model = this.models[modelName];
+		if(model) {
+			if(typeof(state) === 'undefined')
+				model.hide = !model.hide;
+			else
+				model.hide = !state;
+		}
 	}
 
 

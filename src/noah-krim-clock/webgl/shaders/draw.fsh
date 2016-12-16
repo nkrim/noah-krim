@@ -1,5 +1,5 @@
 /** 
-	shader.fsh: Standard fragment shader 
+	draw.fsh: Drawing fragment shader 
 	author: Noah Krim
 */
 
@@ -58,7 +58,7 @@ mediump	vec3 specularLighting(	mediump	vec3	norm,
 
 /** Main function
 ================================	*/
-void main() {
+void main(void) {
 	// Normalize the vertex normal
 	mediump vec3 norm = normalize(vNormal);
 

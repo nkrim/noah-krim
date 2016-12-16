@@ -22,7 +22,6 @@
 		OBJ.downloadMeshes(nameAndUrls, function(meshes) {
 			meshes = clockgl.mapObj(meshes, function(mesh, name) {
 				var opts = meshesSrcDef[name];
-				console.log(mesh);
 				return new Mesh(gl, mesh.vertices, mesh.vertexNormals, mesh.indices, opts.uniforms, opts.usage);
 			});
 			d.resolve(meshes);
@@ -73,21 +72,27 @@
 	/** Draw helpers (arguments should remain constant throughout)
 	----------------------------------------------------------------	*/
 	// Bind and point buffers for this mesh, last bind should be for the buffer that will be drawn
-	AbstractMesh.prototype.bindForDraw = function(gl, attributes, cbuf) {
+	AbstractMesh.prototype.bindForDraw = function(gl, attributeLocs, cbuf) {
 		// Bind and point color buffer, if present
-		gl.bindBuffer(gl.ARRAY_BUFFER, cbuf);
-		gl.vertexAttribPointer(attributes.color, 4, gl.FLOAT, false, 0, 0);
+		if(cbuf && typeof(attributeLocs.color) !== 'undefined') {
+			gl.bindBuffer(gl.ARRAY_BUFFER, cbuf);
+			gl.vertexAttribPointer(attributeLocs.color, 4, gl.FLOAT, false, 0, 0);
+		}
 
 		// Bind and point normal buffer
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.nbuf);
-		gl.vertexAttribPointer(attributes.normal, 3, gl.FLOAT, false, 0, 0);
+		if(typeof(attributeLocs.normal) !== 'undefined') {
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.nbuf);
+			gl.vertexAttribPointer(attributeLocs.normal, 3, gl.FLOAT, false, 0, 0);
+		}
 
 		// Bind and point vertex buffer
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.vbuf);
-		gl.vertexAttribPointer(attributes.position, 3, gl.FLOAT, false, 0, 0);
+		if(typeof(attributeLocs.position) !== 'undefined') {
+			gl.bindBuffer(gl.ARRAY_BUFFER, this.vbuf);
+			gl.vertexAttribPointer(attributeLocs.position, 3, gl.FLOAT, false, 0, 0);
+		}
 	}
 	// Loops through uniforms dict and sets each, does not need to be overriden in most cases
-	AbstractMesh.prototype.setUniforms = function(gl, modelSceneUniforms, uniformsLayout, uniformsForce) {
+	AbstractMesh.prototype.setUniforms = function(gl, uniformsLayout, modelSceneUniforms, uniformsForce) {
 		// Set argument (model/scene) uniforms
 		$.each(modelSceneUniforms, function(name, uniform) {
 			uniform.set(gl);
@@ -104,11 +109,11 @@
 		gl.drawArrays(this.mode, 0, this.length);
 	}
 	// Default main draw method, uses the above methods in order, usually does not need to be overriden, one of the above should be, preferably
-	AbstractMesh.prototype.draw = function(gl, attributes, cbuf, modelSceneUniforms, uniformsLayout, uniformsForce) {
+	AbstractMesh.prototype.draw = function(gl, shaderPrograms, cbuf, modelSceneUniforms, uniformsForce) {
 		// Bind for draw
-		this.bindForDraw(gl, attributes, cbuf);
+		this.bindForDraw(gl, shaderPrograms.attributeLocs, cbuf);
 		// Set uniforms
-		this.setUniforms(gl, modelSceneUniforms, uniformsLayout, uniformsForce);
+		this.setUniforms(gl, shaderPrograms.uniformsLayout, modelSceneUniforms, uniformsForce);
 		// Draw mesh
 		this.drawMesh(gl);
 	}

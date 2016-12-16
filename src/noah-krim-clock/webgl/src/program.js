@@ -5,6 +5,53 @@
 
 (function(clockgl, $, undefined) {
 
+	/** ShaderProgramCache object definition
+	============================================	*/
+	var ShaderProgramCache = function(gl, compiledPrograms) {
+		// Set programs
+		this.programs = compiledPrograms
+
+		// Set current program
+		this._current = undefined;
+	}
+	ShaderProgramCache.prototype.delete = function(gl) {
+		$.each(this.programs, function(name, cp) {
+			cp.delete(gl);
+		});
+		this.programs = undefined;
+		this._current = undefined;
+	}
+
+	Object.defineProperty(ShaderProgramCache.prototype, 'current', { get: function() { return this._current; }});
+	Object.defineProperty(ShaderProgramCache.prototype, 'uniformsLayout', { get: function() { return this._current ? this._current.uniformsLayout : {}}});
+	Object.defineProperty(ShaderProgramCache.prototype, 'attributeLocs', { get: function() { return this._current ? this._current.attributeLocs : {}}});
+
+	ShaderProgramCache.prototype.useProgram = function(gl, name) {
+		var toUse = this.programs[name];
+		if(!toUse)
+			console.warn('Shader program "%s" does not exist in this cache, ignoring useProgram()', name);
+		else {
+			if(this._current) {
+				this.ensureCurrent(gl);
+				this._current.disable(gl);
+			}
+			toUse.useProgram(gl);
+			toUse.enable(gl);
+			this._current = toUse;
+			return this._current;
+		}
+	}
+	ShaderProgramCache.prototype.ensureCurrent = function(gl) {
+		if(!this._current)
+			return false;
+		if(!this._current.isCurrentProgram(gl)) {
+			this._current.useProgram(gl);
+			return false;
+		}
+		return true;
+	}
+
+
 	/** CompiledProgram object definition
 	========================================	*/
 	var CompiledProgram = function(gl, shaderProgram, attributeNames, uniformsLayoutDef) {
@@ -13,8 +60,12 @@
 
 		// Init attribute locations
 		var attributeLocs = {};
+		this._minLoc = Infinity;
+		this._maxLoc = -Infinity;
 		$.each(attributeNames || [], function(index, name) {
 			var loc = gl.getAttribLocation(shaderProgram, name);
+			this._minLoc = Math.min(this._minLoc, loc);
+			this._maxLoc = Math.max(this._maxLoc, loc);
 			attributeLocs[name] = loc;
 		});
 		this.attributeLocs = attributeLocs;
@@ -30,36 +81,47 @@
 		});
 		this.uniformsLayout = uniformsLayout;
 	}
-
 	CompiledProgram.prototype.delete = function(gl) {
 		$.each(this.program.trackedObject.shaders, function(index, shader) {
 			gl.deleteShader(shader);
 		});
-		gl.deleteProgram(cp.program);
+		gl.deleteProgram(this.program);
+	}
+
+	CompiledProgram.prototype.isCurrentProgram = function(gl) {
+		var current = clockgl.getCurrentProgram(gl);
+		if(this.program === current)
+			return true;
+		return false;
+	}
+	CompiledProgram.prototype.useProgram = function(gl) {
+		gl.useProgram(this.program);
 	}
 
 	CompiledProgram.prototype.enable = function(gl) {
-		gl.useProgram(this.program);
+		if(!this.isCurrentProgram(gl))
+			console.error('Cannot enable/disable program if it is not the current program. Make sure this.useProgram() is used first.');
 		$.each(this.attributeLocs, function(name, loc) {
 			gl.enableVertexAttribArray(loc);	
 		});
 	}
-
 	CompiledProgram.prototype.disable = function(gl) {
+		if(!this.isCurrentProgram(gl))
+			console.error('Cannot enable/disable program if it is not the current program. Make sure this.useProgram() is used first.');
 		$.each(this.attributeLocs, function(name, loc) {
 			gl.disableVertexAttribArray(loc);
 		});
 	}
-
-	CompiledProgram.prototype.toggleAttribute = function(gl, attribute, state) {
-		var loc = this.attributeLocs[attribute];
-		if(loc) {
-			if(state)
-				gl.enableVertexAttribArray(loc);
-			else
-				gl.disableVertexAttribArray(loc);
-		}
+	CompiledProgram.prototype.toggleAttribute = function(gl, attributeName, state) {
+		var loc = this.attributeLocs[attributeName];
+		if(!loc)
+			console.warn('Attempt to %s non-existent attribute "%s"', state ? 'enable' : 'disable', attributeName);
+		else if(state)
+			gl.enableVertexAttribArray(loc);
+		else
+			gl.disableVertexAttribArray(loc);
 	}
+
 
 	/** External initialization
 	================================	*/
@@ -85,7 +147,7 @@
 				})
 			})
 		).then(function() {
-			return $.extend.apply($, [{}].concat(Array.prototype.slice.call(arguments)));
+			return new ShaderProgramCache(gl, $.extend.apply($, [{}].concat(Array.prototype.slice.call(arguments))));
 		});
 	}
 
@@ -104,5 +166,12 @@
 				return shader;
 			});
 	}
-	
+
+
+	/** External helpers
+	========================	*/
+	clockgl.getCurrentProgram = function(gl) {
+		return gl.getParameter(gl.CURRENT_PROGRAM);
+	}
+
 }(window.clockgl = window.clockgl || {}, jQuery));

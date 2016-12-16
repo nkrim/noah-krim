@@ -90,7 +90,7 @@
 
 	/** Draw methods
 	----------------	*/
-	Model.prototype.draw = function(gl, attributes, uniforms, uniformsLayout, uniformsForce) {
+	Model.prototype.draw = function(gl, shaderPrograms, uniforms, uniformsForce) {
 		//if(this.hide)
 			//return;
 		// Add model uniforms/defaults to uniforms dict
@@ -100,9 +100,9 @@
 			rotation: this.world.rotationMatrix(),
 			translation: this.world.translationMatrix(),
 		}, this.uniformsDef);
-		$.extend(uniforms, clockgl._initUniformsFromContextLayout(uniformsLayout.model, modelUniformsDef, uniformsForce.model));
+		$.extend(uniforms, clockgl._initUniformsFromContextLayout(shaderPrograms.uniformsLayout.model, modelUniformsDef, uniformsForce.model));
 		// Draw model's mesh
-		this.mesh.draw(gl, attributes, this.cbuf, uniforms, uniformsLayout, uniformsForce);
+		this.mesh.draw(gl, shaderPrograms, this.cbuf, uniforms, uniformsForce);
 	}
 
 
