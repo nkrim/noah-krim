@@ -30,7 +30,7 @@
 		var toUse = this.programs[name];
 		if(!toUse)
 			console.warn('Shader program "%s" does not exist in this cache, ignoring useProgram()', name);
-		else {
+		else if(toUse !== this._current) {
 			if(this._current) {
 				this.ensureCurrent(gl);
 				this._current.disable(gl);
@@ -60,12 +60,8 @@
 
 		// Init attribute locations
 		var attributeLocs = {};
-		this._minLoc = Infinity;
-		this._maxLoc = -Infinity;
 		$.each(attributeNames || [], function(index, name) {
 			var loc = gl.getAttribLocation(shaderProgram, name);
-			this._minLoc = Math.min(this._minLoc, loc);
-			this._maxLoc = Math.max(this._maxLoc, loc);
 			attributeLocs[name] = loc;
 		});
 		this.attributeLocs = attributeLocs;

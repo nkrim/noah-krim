@@ -182,9 +182,12 @@
 			attributes: ['position', 'normal', 'color'],
 			uniforms: {
 				scene: {
-					projection: 	{ type: clockgl.UNIFORM.MAT4F, default: makePerspective(fovy, aspect, znear, zfar), },
+					projection: 	{ type: clockgl.UNIFORM.MAT4F, default: Matrix.I(4), },
 					modelView: 		{ type: clockgl.UNIFORM.MAT4F, default: Matrix.I(4), },
+					lightProj: 		{ type: clockgl.UNIFORM.MAT4F, default: Matrix.I(4), },
+					lightView:  	{ type: clockgl.UNIFORM.MAT4F, default: Matrix.I(4), },
 					camPos: 		{ type: clockgl.UNIFORM.VEC3F, default: cam_pos, },
+					vsm_tex: 		{ type: clockgl.UNIFORM.VEC1I, default: $V([0]), },
 					ambient_col: 	{ type: clockgl.UNIFORM.VEC3F, default: lightingDef.ambient.ambient_col, },
 					ambient_int: 	{ type: clockgl.UNIFORM.VEC1F, default: lightingDef.ambient.ambient_int, },
 					diffuse_dir: 	{ type: clockgl.UNIFORM.VEC3F, default: lightingDef.diffuse.diffuse_dir, }, 
@@ -460,6 +463,11 @@
 		});
 	}
 
+	clockgl._viewportToCanvas = function(gl) {
+		if(canvas)
+			gl.viewport(0, 0, canvas.width, canvas.height);
+	}
+
 	var keystrokeDebugger = function(e) { console.log(e.which); }
 	var debugKeystrokes_on = false;
 	clockgl._debugKeystrokes = function(val) {
@@ -481,7 +489,6 @@
 	function initWebGL(canvas) {
 		var webgl = null;
 		var contextAttributes = {
-			depth: true,
 			stencil: true,
 		}
 
@@ -500,16 +507,20 @@
 
 	function getSceneUniformsDef() {
 		// Init scene uniforms
+		var lightProj = makeOrtho(-20, 20, -20, 20, 0, 40);
+		var lightView = lightingDef.diffuse.diffuse_cam.modelView();
 		var sceneUniformsDef = {
 			draw: {
 				projection: projection,
 				modelView: camera.modelView(),
+				lightProj: lightProj,
+				lightView: lightView,
 				camPos: camera.pos,
 				specular_half: clockgl.halfAngleDir(camera.lookVector(), lightingDef.diffuse.diffuse_cam.lookVector()).x(-1),
 			},
 			vsm: {
-				projection: makeOrtho(-20, 20, -20, 20, -0, 40),
-				modelView: lightingDef.diffuse.diffuse_cam.modelView(),
+				projection: lightProj,
+				modelView: lightView,
 			},
 		}
 		lightingDef.diffuse.diffuse_dir = lightingDef.diffuse.diffuse_cam.lookVector();
@@ -636,7 +647,7 @@
 					uniformsForce.mesh.lighting_on = clockgl.UNIFORM_FALSE;
 			},
 			88 /* X */: function() {
-				options.cur.hideAxes = true;
+				options.cur.hideAxes = !options.old.hideAxes;
 			},
 		};
 	}

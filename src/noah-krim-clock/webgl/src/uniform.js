@@ -132,34 +132,62 @@
 						};
 		var setConF = function(method) { return setConV(method, arrF); };
 		var setConI = function(method) { return setConV(method, arrI); };
+		var func;
+		var isMatrix = false;
+		var isFloat = true;
 		switch(type) {
 			// Matrices
 			case clockgl.UNIFORM.MAT2F:
-				return setConM(gl.uniformMatrix2fv);
+				func = gl.uniformMatrix2fv;
+				isMatrix = true;
+				break;
 			case clockgl.UNIFORM.MAT3F:
-				return setConM(gl.uniformMatrix3fv);
+				func = gl.uniformMatrix3fv;
+				isMatrix = true;
+				break;
 			case clockgl.UNIFORM.MAT4F:
-				return setConM(gl.uniformMatrix4fv);
+				func = gl.uniformMatrix4fv;
+				isMatrix = true;
+				break;
 			// Float vectors
 			case clockgl.UNIFORM.VEC1F:
-				return setConF(gl.uniform1fv);
+				func = gl.uniform1fv;
+				break;
 			case clockgl.UNIFORM.VEC2F:
-				return setConF(gl.uniform2fv);
+				func = gl.uniform2fv;
+				break;
 			case clockgl.UNIFORM.VEC3F:
-				return setConF(gl.uniform3fv);
+				func = gl.uniform3fv;
+				break;
 			case clockgl.UNIFORM.VEC4F:
-				return setConF(gl.uniform4fv);
+				func = gl.uniform4fv;
+				break;
 			// Int vectors
 			case clockgl.UNIFORM.VEC1I:
-				return setConI(gl.uniform1iv);
+				func = gl.uniform1iv;
+				isFloat = false;
+				break;
 			case clockgl.UNIFORM.VEC2I:
-				return setConI(gl.uniform2iv);
+				func = gl.uniform2iv;
+				isFloat = false;
+				break;
 			case clockgl.UNIFORM.VEC3I:
-				return setConI(gl.uniform3iv);
+				func = gl.uniform3iv;
+				isFloat = false;
+				break;
 			case clockgl.UNIFORM.VEC4I:
-				return setConI(gl.uniform4iv);
+				func = gl.uniform4iv;
+				isFloat = false;
+				break;
+			default: 
+				throw ['Uniform type of value %o not recognized', type];
 		}
-		throw ['Uniform type of value %o not recognized', type];
+		return function(loc, val) { 
+			return func.apply(gl, [loc].concat(
+											isMatrix ? [false] : [], 
+											isFloat ? [new Float32Array(val.flatten())] : [new Int32Array(val.flatten())]
+										)); 
+		}
 	}
 
 	// Export Uniform

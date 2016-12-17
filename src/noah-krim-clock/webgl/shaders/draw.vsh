@@ -11,10 +11,14 @@ attribute vec4 color;
 
 /** Scene uniforms
 ========================	*/
-/** Transforms
+/** Projection/View
 ------------------------	*/
 uniform mat4 projection;
 uniform mat4 modelView;
+uniform mat4 lightProj;
+uniform mat4 lightView;
+/** Transforms
+------------------------	*/
 uniform mat4 objWorld;
 uniform mat4 base;
 uniform mat4 scale;
@@ -29,6 +33,7 @@ uniform vec3 camPos;
 varying lowp    vec4 vColor;
 varying mediump vec3 vNormal;
 varying mediump	vec3 vViewDir;
+varying mediump vec2 vVsmTexCoords;
 
 void main(void) {
 	// Transform vertex and normal
@@ -44,4 +49,5 @@ void main(void) {
 	vColor = color;
 	vNormal = norm;
 	vViewDir = camPos - worldPos.xyz;
+	vVsmTexCoords = ((lightProj * lightView * worldPos).xy + 1.0)/2.0;
 }

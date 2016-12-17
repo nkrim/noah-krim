@@ -5,9 +5,14 @@
 
 /** Values from vertex shader
 ================================	*/
-varying lowp    vec4  vColor;		// Color of fragment
-varying mediump vec3  vNormal;		// Normal of fragment
-varying mediump vec3  vViewDir;		// Direction to view from fragment
+varying lowp    vec4  	vColor;			// Color of fragment
+varying mediump vec3  	vNormal;		// Normal of fragment
+varying mediump vec3 	vViewDir;		// Direction to view from fragment
+varying mediump vec2 	vVsmTexCoords;	// Texture coords for vsm_tex
+
+/** Texture uniforms
+================================	*/
+uniform sampler2D vsm_tex;
 
 /** Lighting uniforms
 ================================	*/
@@ -61,15 +66,14 @@ mediump	vec3 specularLighting(	mediump	vec3	norm,
 void main(void) {
 	// Normalize the vertex normal
 	mediump vec3 norm = normalize(vNormal);
-
 	// Initialize color with varying value from vertex shader
 	lowp vec3 color = vColor.xyz;
-
+	// Get normalized vector for diffuse lighting
 	mediump vec3 diffuse_dir_norm_rev = -1.0 * normalize(diffuse_dir);
 
 	// Lighting
 	if(lighting_on > 0) {
-		// Ambient lighting
+		/*// Ambient lighting
 		mediump vec3 amb = vec3(0.0,0.0,0.0);
 		if(ambient_on > 0)
 			amb = ambientLighting(ambient_col, ambient_int);
@@ -84,8 +88,11 @@ void main(void) {
 		if(specular_on > 0 && specular_exp > 0.0)
 			spec = specularLighting(norm, specular_exp, vViewDir, diffuse_dir_norm_rev, specular_col, specular_int);
 
+		// VSM lighting
+		mediump vec4 moments = texture2D(vsm_tex, vVsmTexCoords);
+
 		// Set fragment color
-		gl_FragColor = vec4(clamp(color * (amb + dif + spec), 0.0, 1.0), vColor.w);
+		gl_FragColor = moments;//vec4(clamp(color * (amb + dif + spec), 0.0, 1.0), vColor.w);*/
 	}
 	else {
 		// Set fragment color
