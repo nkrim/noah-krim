@@ -55,7 +55,7 @@
 	/** CompiledProgram object definition
 	========================================	*/
 	var CompiledProgram = function(gl, shaderProgram, attributeNames, uniformsLayoutDef) {
-		// Set shader program
+		// Set and use shader program
 		this.program = shaderProgram;
 
 		// Init attribute locations

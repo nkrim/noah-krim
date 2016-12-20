@@ -36,6 +36,18 @@
 		},
 	};
 	var meshesRawDef = {	// Raw definitions for meshes (key: name, value: {init, options, uniforms}) [Raw mesh `init` function: functoin(gl, options, meshUniformsDef)]
+		quad: {
+			init: clockgl.rawQuadMesh,
+			options: {
+				topLeft: $V([-1.0, 1.0, 0.0]),
+				topRight: $V([1.0, 1.0, 0.0]),
+				bottomRight: $V([1.0, -1.0, 0.0]),
+				bottomLeft: $V([-1.0, -1.0, 0.0]),
+			},
+			uniforms: {
+				lighting_on: clockgl.UNIFORM_FALSE,
+			},
+		},
 		axis: {
 			init: clockgl.rawSingleLineMesh,
 			options: {
@@ -59,6 +71,14 @@
 									[,update: func(time)]
 								}) */
 	var sceneObjsDef = {	
+		// Quad
+		quad: {
+			models: {
+				quad: {
+					mesh: 'quad',
+				},
+			},
+		},
 		// Axes	
 		axes: {
 			models: {
@@ -143,6 +163,7 @@
 			},
 		},
 	};
+	var drawingObjsDef = ['axes', 'clock0']
 	/** View
 	----------------------------	*/
 	var background = $V([0.0, 0.0, 0.0, 1.0]);
@@ -164,7 +185,7 @@
 		},
 		diffuse: {
 			diffuse_cam: new clockgl.Camera($V([-10,10,10]),$V([0,0,0])), //TEMP
-			diffuse_dir: $V([1.0, -.0, -1.0]).toUnitVector(),
+			diffuse_dir: $V([1.0, -1.0, -1.0]).toUnitVector(),
 			diffuse_col: $V([1.0, 1.0, 1.0]), 
 			diffuse_int: $V([0.4]),
 		},
@@ -211,7 +232,24 @@
 					ambient_on: 	{ type: clockgl.UNIFORM.VEC1I, default: clockgl.UNIFORM_TRUE, },
 					diffuse_on: 	{ type: clockgl.UNIFORM.VEC1I, default: clockgl.UNIFORM_TRUE, },
 					specular_on: 	{ type: clockgl.UNIFORM.VEC1I, default: clockgl.UNIFORM_TRUE, },
+					vsm_on: 		{ type: clockgl.UNIFORM.VEC1I, default: clockgl.UNIFORM_TRUE, },
 				},
+			},
+		},
+		blur: {
+			vsh: BASE+'/shaders/blur.vsh',
+			fsh: BASE+'/shaders/blur.fsh',
+			attributes: ['position'],
+			uniforms: {
+				scene: {
+					resolution: 	{ type: clockgl.UNIFORM.VEC1I, default: $V([0]), },
+					blur_sigma: 	{ type: clockgl.UNIFORM.VEC1F, default: $V([0]), },
+					is_vertical: 	{ type: clockgl.UNIFORM.VEC1I, default: $V([0]), },
+					img_tex: 		{ type: clockgl.UNIFORM.VEC1I, default: $V([0]), },
+				},
+				sceneObj: { },
+				model: { },
+				mesh: { },
 			},
 		},
 		vsm: {
@@ -232,9 +270,7 @@
 					rotation: 		{ type: clockgl.UNIFORM.MAT4F, default: Matrix.I(4), },
 					translation: 	{ type: clockgl.UNIFORM.MAT4F, default: Matrix.I(4), },
 				},
-				mesh: {
-
-				},
+				mesh: { },
 			},
 		},
 	};
@@ -257,6 +293,7 @@
 	----------------------------	*/
 	var meshes;
 	var sceneObjs;
+	var drawingObjs;
 	/** Uniforms and locations
 	----------------------------	*/
 	var uniformsForce;
@@ -353,6 +390,13 @@
 							return obj;
 						});
 						console.log(sceneObjs);
+
+						// Find and set drawingObjs array
+						drawingObjs = {};
+						$.each(drawingObjsDef, function(index, name) {
+							if(name in sceneObjs)
+								drawingObjs[name] = true;
+						});
 					}
 					catch (e) {
 						return $.Deferred().reject(e);
@@ -373,6 +417,7 @@
 						clockgl.sceneUniforms = sceneUniforms;
 						clockgl.meshes = meshes;
 						clockgl.sceneObjs = sceneObjs;
+						clockgl.drawingObjs = drawingObjs;
 					}
 				})
 				.done(function() {
@@ -518,6 +563,7 @@
 				camPos: camera.pos,
 				specular_half: clockgl.halfAngleDir(camera.lookVector(), lightingDef.diffuse.diffuse_cam.lookVector()).x(-1),
 			},
+			blur: { },
 			vsm: {
 				projection: lightProj,
 				modelView: lightView,
@@ -566,7 +612,7 @@
 			}
 
 			// Draw scene
-			clockgl.drawScene(gl, sceneObjs, timeDiff, options, shaderPrograms, getSceneUniformsDef(), uniformsForce);
+			clockgl.drawScene(gl, sceneObjs, drawingObjs, timeDiff, options, shaderPrograms, getSceneUniformsDef(), uniformsForce);
 
 			// Set prevTime
 			prevTime = curTime;
@@ -593,8 +639,8 @@
 	}
 
 	function getInputActionsHold(curTime) {
-		var horizontalSensitivity = clockgl.radians(5);
-		var verticalSensitivity = clockgl.radians(5);
+		var horizontalSensitivity = clockgl.radians(2);
+		var verticalSensitivity = clockgl.radians(2);
 		var zoomSensitivity = 1
 		return {	
 			37 /* Left */: function() {

@@ -30,17 +30,25 @@ uniform vec3 camPos;
 
 /** Fragment args
 ========================	*/
-varying lowp    vec4 vColor;
-varying mediump vec3 vNormal;
-varying mediump	vec3 vViewDir;
-varying mediump vec2 vVsmTexCoords;
+varying lowp    vec4 	vColor;
+varying mediump vec3 	vNormal;
+varying mediump	vec3 	vViewDir;
+varying mediump vec3 	vVsmLightCoords;
+varying mediump float	vVsmFragDepth;
 
 void main(void) {
+	// Init bias matrix
+	mat4 biasMatrix = mat4(	0.5,0.0,0.0,0.0,
+							0.0,0.5,0.0,0.0,
+							0.0,0.0,0.5,0.0,
+							0.5,0.5,0.5,1.0);
+
 	// Transform vertex and normal
 	mat4 world = objWorld * translation * rotation * scale * base;
 	vec4 worldPos = world * vec4(position, 1.0);
 	vec4 pos = projection * modelView * worldPos;
 	vec3 norm = (world * vec4(normal, 0.0)).xyz;
+	vec4 lightCoords = lightProj * lightView * worldPos;
 
 	// Set position
 	gl_Position = pos;
@@ -49,5 +57,5 @@ void main(void) {
 	vColor = color;
 	vNormal = norm;
 	vViewDir = camPos - worldPos.xyz;
-	vVsmTexCoords = ((lightProj * lightView * worldPos).xy + 1.0)/2.0;
+	vVsmLightCoords = (biasMatrix * (lightCoords/lightCoords.w)).xyz;
 }

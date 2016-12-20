@@ -8,7 +8,7 @@
 varying lowp    vec4  	vColor;			// Color of fragment
 varying mediump vec3  	vNormal;		// Normal of fragment
 varying mediump vec3 	vViewDir;		// Direction to view from fragment
-varying mediump vec2 	vVsmTexCoords;	// Texture coords for vsm_tex
+varying mediump vec3 	vVsmLightCoords;
 
 /** Texture uniforms
 ================================	*/
@@ -36,11 +36,14 @@ uniform lowp 	vec3 	specular_col;
 uniform mediump	float	specular_int;
 uniform mediump float 	specular_exp;
 uniform lowp	int 	specular_on;
+/** VSM lighting
+--------------------------------	*/
+uniform lowp 	int 	vsm_on;
 
 
 /** Lighting functions
 ================================	*/
-mediump vec3 ambientLighting(  mediump vec3  l_col,
+mediump vec3 ambientLighting(  	mediump vec3  l_col,
 								lowp    float l_int) {
 	return l_int * l_col;
 }
@@ -59,7 +62,15 @@ mediump	vec3 specularLighting(	mediump	vec3	norm,
 	mediump vec3 halfDir = normalize(v_dir + l_dir);
 	return l_int * pow(max(0.0, dot(norm, halfDir)), exp) * l_col;
 }
-
+mediump float vsmLighting(		sampler2D 		map_tex,
+								mediump vec2	tex_coords,
+								mediump float	frag_depth) {
+	mediump vec4 moments = texture2D(map_tex, tex_coords);
+	mediump float variance = moments.y - moments.x*moments.x;
+	mediump float mD = frag_depth - moments.x;
+	mediump float p = variance / (variance + mD * mD);
+	return max(p, float(frag_depth <= moments.x));
+}
 
 /** Main function
 ================================	*/
@@ -73,7 +84,7 @@ void main(void) {
 
 	// Lighting
 	if(lighting_on > 0) {
-		/*// Ambient lighting
+		// Ambient lighting
 		mediump vec3 amb = vec3(0.0,0.0,0.0);
 		if(ambient_on > 0)
 			amb = ambientLighting(ambient_col, ambient_int);
@@ -87,12 +98,14 @@ void main(void) {
 		mediump vec3 spec = vec3(0.0,0.0,0.0);
 		if(specular_on > 0 && specular_exp > 0.0)
 			spec = specularLighting(norm, specular_exp, vViewDir, diffuse_dir_norm_rev, specular_col, specular_int);
-
+		
 		// VSM lighting
-		mediump vec4 moments = texture2D(vsm_tex, vVsmTexCoords);
+		mediump float vsmLit = 1.0;
+		if(vsm_on > 0)
+			vsmLit = vsmLighting(vsm_tex, vVsmLightCoords.xy, vVsmLightCoords.z);
 
 		// Set fragment color
-		gl_FragColor = moments;//vec4(clamp(color * (amb + dif + spec), 0.0, 1.0), vColor.w);*/
+		gl_FragColor = vec4(vsmLit, 0.0, 0.0, 1.0);//vec4(clamp(color * vsmLit * (amb + dif + spec), 0.0, 1.0), vColor.w);
 	}
 	else {
 		// Set fragment color

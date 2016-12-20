@@ -226,7 +226,7 @@
 
 	/** Raw mesh initializers
 	============================	*/
-	// Expected options: {vertices[, normals][, usage]}
+	// Expected options: {start, end[, usage]}
 	clockgl.rawSingleLineMesh = function(gl, options, meshUniformsDef) {
 		console.assert(options.start, 'Raw Single Line Mesh: options missing `start`\n\tExpected: {start, end[, startNormal, endNormal][, usage]}\n\tReceived: %o', options);
 		console.assert(options.end, 'Raw Single Line Mesh: options missing `end`\n\tExpected: {start, end[, startNormal, endNormal][, usage]}\n\tReceived: %o', options);
@@ -235,13 +235,24 @@
 		var start = options.start instanceof Vector ? options.start.flatten() : options.start;
 		var end = options.end instanceof Vector ? options.end.flatten() : options.end;
 		vertices = start.concat(end);
-		// Set normals (if present)
-		if(options.startNormal && options.endNormal) {
-			var startNormal = options.startNormal instanceof Vector ? options.startNormal.flatten() : options.startNormal;
-			var endNormal = options.endNormal instanceof Vector ? options.endNormal.flatten() : options.endNormal;
-			normals = startNormal.concat(endNormal);
-		}
-		return new LinesMesh(gl, vertices, normals, meshUniformsDef, options.usage);
+		// Return mesh
+		return new LinesMesh(gl, vertices, null, meshUniformsDef, options.usage);
+	}
+	// Expected options: {topLeft, topRight, bottomRight, bottomLeft[, usage]}
+	clockgl.rawQuadMesh = function(gl, options, meshUniformsDef) {
+		console.assert(options.topLeft, 'Raw Single Line Mesh: options missing `topLeft`\n\tExpected: {topLeft, topRight, bottomRight, bottomLeft[, usage]}\n\tReceived: %o', options);
+		console.assert(options.topRight, 'Raw Single Line Mesh: options missing `topRight`\n\tExpected: {topLeft, topRight, bottomRight, bottomLeft[, usage]}\n\tReceived: %o', options);
+		console.assert(options.bottomRight, 'Raw Single Line Mesh: options missing `bottomRight`\n\tExpected: {topLeft, topRight, bottomRight, bottomLeft[, usage]}\n\tReceived: %o', options);
+		console.assert(options.bottomLeft, 'Raw Single Line Mesh: options missing `bottomLeft`\n\tExpected: {topLeft, topRight, bottomRight, bottomLeft[, usage]}\n\tReceived: %o', options);
+		var vertices, normals;
+		// Set vertices
+		var topLeft = options.topLeft instanceof Vector ? options.topLeft.flatten() : options.topLeft;
+		var topRight = options.topRight instanceof Vector ? options.topRight.flatten() : options.topRight;
+		var bottomRight = options.bottomRight instanceof Vector ? options.bottomRight.flatten() : options.bottomRight;
+		var bottomLeft = options.bottomLeft instanceof Vector ? options.bottomLeft.flatten() : options.bottomLeft;
+		vertices = topLeft.concat(bottomLeft, topRight, bottomRight, topRight, bottomLeft);
+		// Return mesh
+		return new AbstractMesh(gl, vertices, null, meshUniformsDef, options.usage, gl.TRIANGLES);
 	}
 
 
