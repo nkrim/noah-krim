@@ -30,11 +30,11 @@ uniform vec3 camPos;
 
 /** Fragment args
 ========================	*/
-varying lowp    vec4 	vColor;
-varying mediump vec3 	vNormal;
-varying mediump	vec3 	vViewDir;
-varying mediump vec3 	vVsmLightCoords;
-varying mediump float	vVsmFragDepth;
+varying vec4 	vColor;
+varying vec3 	vNormal;
+varying vec3 	vViewDir;
+varying vec3 	vVsmLightCoords;
+varying float	vVsmFragDepth;
 
 void main(void) {
 	// Init bias matrix
@@ -58,4 +58,5 @@ void main(void) {
 	vNormal = norm;
 	vViewDir = camPos - worldPos.xyz;
 	vVsmLightCoords = (biasMatrix * (lightCoords/lightCoords.w)).xyz;
+	vVsmFragDepth = distance(pos.xyz, camPos)*distance(vec3(0.0,0.0,0.0), camPos)/40.0;
 }

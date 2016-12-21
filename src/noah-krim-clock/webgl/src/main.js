@@ -128,7 +128,8 @@
 					},
 					world: {
 						scale: $V([0.85, 0.8, 0.85]),
-						rot: Matrix.RotationZ(-clockgl.radians(60)), 
+						rot: Matrix.RotationZ(-clockgl.radians(60)),
+						trans: $V([0.0, 0.0, 5.0]),
 					},
 				},
 				clockFrame: {
@@ -158,8 +159,8 @@
 			},
 			update: function(timeDiff) {
 				var secondsSpeed = -timeDiff * Math.PI / 500;
-				this.models.lineShort.model.world.rotateZ(secondsSpeed);
-				this.models.lineLong.model.world.rotateZ(secondsSpeed / 6);
+				this.models.lineLong.model.world.rotateZ(secondsSpeed);
+				this.models.lineShort.model.world.rotateZ(secondsSpeed / 6);
 			},
 		},
 	};
@@ -252,6 +253,19 @@
 				mesh: { },
 			},
 		},
+		copy: {
+			vsh: BASE+'/shaders/copy.vsh',
+			fsh: BASE+'/shaders/copy.fsh',
+			attributes: ['position'],
+			uniforms: {
+				scene: {
+					img_tex: 		{ type: clockgl.UNIFORM.VEC1I, default: $V([0]), },
+				},
+				sceneObj: { },
+				model: { },
+				mesh: { },
+			},
+		},
 		vsm: {
 			vsh: BASE+'/shaders/vsm.vsh',
 			fsh: BASE+'/shaders/vsm.fsh',
@@ -323,6 +337,10 @@
 
 		// Only continue if WebGL is available and working
 		if (gl) {
+			// Expose gl extensions
+			gl.getExtension('OES_standard_derivatives');
+
+			// Set gl defaults
 			gl.clearColor.apply(gl, background.flatten());  // Clear to background, fully opaque
 			gl.clearDepth(1.0);                 // Clear everything
 			gl.enable(gl.DEPTH_TEST);           // Enable depth testing
@@ -538,7 +556,7 @@
 		}
 
 		try {
-			webgl = canvas.getContext('webgl', contextAttributes) || canvas.getContext('experimental-webgl', contextAttributes);
+			webgl = canvas.getContext('webgl2', contextAttributes) || canvas.getContext('webgl', contextAttributes) || canvas.getContext('experimental-webgl', contextAttributes);
 		}
 		catch (e) {}
 
@@ -552,7 +570,7 @@
 
 	function getSceneUniformsDef() {
 		// Init scene uniforms
-		var lightProj = makeOrtho(-20, 20, -20, 20, 0, 40);
+		var lightProj = makeOrtho(-20, 20, -20, 20, 0, 30);
 		var lightView = lightingDef.diffuse.diffuse_cam.modelView();
 		var sceneUniformsDef = {
 			draw: {

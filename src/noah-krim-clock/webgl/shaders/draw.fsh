@@ -3,12 +3,16 @@
 	author: Noah Krim
 */
 
+precision mediump float;
+precision lowp int;
+
 /** Values from vertex shader
 ================================	*/
-varying lowp    vec4  	vColor;			// Color of fragment
-varying mediump vec3  	vNormal;		// Normal of fragment
-varying mediump vec3 	vViewDir;		// Direction to view from fragment
-varying mediump vec3 	vVsmLightCoords;
+varying vec4  	vColor;			// Color of fragment
+varying vec3  	vNormal;		// Normal of fragment
+varying vec3 	vViewDir;		// Direction to view from fragment
+varying vec3 	vVsmLightCoords;
+varying float 	vVsmFragDepth;
 
 /** Texture uniforms
 ================================	*/
@@ -18,94 +22,113 @@ uniform sampler2D vsm_tex;
 ================================	*/
 /** Overall lighting flag
 --------------------------------	*/
-uniform lowp    int  lighting_on;
+uniform int  	lighting_on;
 /** Global ambient lighting
 --------------------------------	*/
-uniform mediump vec3  	ambient_col;
-uniform lowp    float 	ambient_int;
-uniform lowp    int   	ambient_on;
+uniform vec3  	ambient_col;
+uniform float 	ambient_int;
+uniform int 	ambient_on;
 /** Diffuse lighting
 --------------------------------	*/
-uniform mediump vec3  	diffuse_dir;
-uniform lowp    vec3  	diffuse_col;
-uniform mediump float 	diffuse_int;
-uniform lowp    int   	diffuse_on;
+uniform vec3  	diffuse_dir;
+uniform vec3  	diffuse_col;
+uniform float 	diffuse_int;
+uniform int   	diffuse_on;
 /** Specular lighting
 --------------------------------	*/
-uniform lowp 	vec3 	specular_col;
-uniform mediump	float	specular_int;
-uniform mediump float 	specular_exp;
-uniform lowp	int 	specular_on;
+uniform	vec3 	specular_col;
+uniform float	specular_int;
+uniform float 	specular_exp;
+uniform int 	specular_on;
 /** VSM lighting
 --------------------------------	*/
-uniform lowp 	int 	vsm_on;
+uniform int 	vsm_on;
 
+
+/** Helper functions
+================================	*/
+float linstep(float low, float high, float v) {
+	return clamp((v-low)/(high-low), 0.0, 1.0);
+}
 
 /** Lighting functions
 ================================	*/
-mediump vec3 ambientLighting(  	mediump vec3  l_col,
-								lowp    float l_int) {
-	return l_int * l_col;
+float diffuseLighting(	vec3  	norm, 
+					    vec3  	l_dir, 
+					    float 	l_int) {
+	return l_int * max(0.0, dot(l_dir, norm));
 }
-mediump	vec3 diffuseLighting(	mediump vec3  	norm, 
-					      		mediump vec3  	l_dir, 
-					      		lowp    vec3  	l_col, 
-					      		mediump	float 	l_int) {
-	return l_int * max(0.0, dot(l_dir, norm)) * l_col;
+float specularLighting(	vec3	norm,
+						float	exp,
+						vec3 	v_dir,
+						vec3	l_dir,
+						float	l_int) {
+	vec3 halfDir = normalize(v_dir + l_dir);
+	return l_int * pow(max(0.0, dot(norm, halfDir)), exp);
+
+	//mediump vec3 l_ref = normalize(reflect(-1.0*l_dir, norm));
+	//return l_int * pow(max(0.0, dot(normalize(vViewDir), l_ref)), exp);
 }
-mediump	vec3 specularLighting(	mediump	vec3	norm,
-								mediump float	exp,
-								mediump vec3 	v_dir,
-								mediump vec3	l_dir,
-								lowp 	vec3 	l_col,
-								mediump float	l_int) {
-	mediump vec3 halfDir = normalize(v_dir + l_dir);
-	return l_int * pow(max(0.0, dot(norm, halfDir)), exp) * l_col;
-}
-mediump float vsmLighting(		sampler2D 		map_tex,
-								mediump vec2	tex_coords,
-								mediump float	frag_depth) {
-	mediump vec4 moments = texture2D(map_tex, tex_coords);
-	mediump float variance = moments.y - moments.x*moments.x;
-	mediump float mD = frag_depth - moments.x;
-	mediump float p = variance / (variance + mD * mD);
-	return max(p, float(frag_depth <= moments.x));
+float vsmLighting(	sampler2D 	map_tex,
+					vec2		tex_coords,
+					float		frag_depth) {
+	vec2 moments = texture2D(map_tex, tex_coords).xy;
+
+	/*float variance = moments.y - moments.x*moments.x;
+	float mD = frag_depth - moments.x;
+	float p = variance / (variance + mD * mD);
+	return min(1.0, max(p, float(frag_depth <= moments.x)));*/
+
+	float p = smoothstep(frag_depth-0.02, frag_depth, moments.x);
+	float variance = max(moments.y - moments.x*moments.x, -0.001);
+	float d = frag_depth - moments.x;
+	float p_max = linstep(0.2, 1.0, variance / (variance + d*d));
+	return clamp(max(p, p_max), 0.0, 1.0);
 }
 
 /** Main function
 ================================	*/
 void main(void) {
 	// Normalize the vertex normal
-	mediump vec3 norm = normalize(vNormal);
+	vec3 norm = normalize(vNormal);
 	// Initialize color with varying value from vertex shader
-	lowp vec3 color = vColor.xyz;
+	vec3 color = vColor.xyz;
 	// Get normalized vector for diffuse lighting
-	mediump vec3 diffuse_dir_norm_rev = -1.0 * normalize(diffuse_dir);
+	vec3 diffuse_dir_norm_rev = -1.0 * normalize(diffuse_dir);
 
 	// Lighting
 	if(lighting_on > 0) {
+		// Set defualts
+		float amb = 0.0;
+		float dif = 0.0;
+		float spec = 0.0;
+		float vsmLit = 1.0;
+
 		// Ambient lighting
-		mediump vec3 amb = vec3(0.0,0.0,0.0);
 		if(ambient_on > 0)
-			amb = ambientLighting(ambient_col, ambient_int);
+			amb = ambient_int;
 
 		// Diffuse lighting
-		mediump vec3 dif = vec3(0.0,0.0,0.0);
 		if(diffuse_on > 0)
-			dif = diffuseLighting(norm, diffuse_dir_norm_rev, diffuse_col, diffuse_int);
+			dif = diffuseLighting(norm, diffuse_dir_norm_rev, diffuse_int);
 
 		// Specular lighting
-		mediump vec3 spec = vec3(0.0,0.0,0.0);
 		if(specular_on > 0 && specular_exp > 0.0)
-			spec = specularLighting(norm, specular_exp, vViewDir, diffuse_dir_norm_rev, specular_col, specular_int);
+			spec = specularLighting(norm, specular_exp, vViewDir, diffuse_dir_norm_rev, specular_int);
 		
 		// VSM lighting
-		mediump float vsmLit = 1.0;
 		if(vsm_on > 0)
 			vsmLit = vsmLighting(vsm_tex, vVsmLightCoords.xy, vVsmLightCoords.z);
 
 		// Set fragment color
-		gl_FragColor = vec4(vsmLit, 0.0, 0.0, 1.0);//vec4(clamp(color * vsmLit * (amb + dif + spec), 0.0, 1.0), vColor.w);
+		/*gl_FragColor = vec4(clamp(
+			color * (
+				amb * ambient_col + 
+				vsmLit * dif * diffuse_col + 
+				4.0*clamp(dif, 0.0, 0.25) * spec * specular_col
+			)
+		, 0.0, 1.0), vColor.w);*/
+		gl_FragColor = vec4(vsmLit, texture2D(vsm_tex, vVsmLightCoords.xy).x, vVsmLightCoords.z, 1.0);
 	}
 	else {
 		// Set fragment color

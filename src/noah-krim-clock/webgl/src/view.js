@@ -52,14 +52,16 @@
 
 								sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce);
 
-		// Blur shader passes (vertical then horizontal)
-		var blurSigma = 5.0;
-		vsmTex = blurPass(	gl, configs.blur0, 
-							vsmTex, blurSigma, true, 
-							sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce)
-		vsmTex = blurPass(	gl, configs.blur1, 
-							vsmTex, blurSigma, false, 
-							sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce)
+		for(var i=0; i<0; i++) {
+			// Blur shader passes (vertical then horizontal)
+			var blurSigma = 5.0;
+			vsmTex = blurPass(	gl, configs.blur0, 
+								vsmTex, blurSigma, true, 
+								sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce)
+			vsmTex = blurPass(	gl, configs.blur1, 
+								vsmTex, blurSigma, false, 
+								sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce)
+		}
 
 		// Draw shader pass
 		drawPass(	gl,
@@ -227,6 +229,11 @@
 		// Bind vsm framebuffer
 		gl.bindFramebuffer(gl.FRAMEBUFFER, vsmConfig.fbo);
 
+		// Set MIN_LOD on texture to 0 for drawing
+		gl.bindTexture(gl.TEXTURE_2D, vsmConfig.tex);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_BASE_LEVEL, 0);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+
 		// Set viewport
 		gl.viewport(0, 0, vsmConfig.res, vsmConfig.res);
 
@@ -239,9 +246,10 @@
 		// Draw scene
 		drawObjs(gl, sceneObjs, drawingObjs, shaderPrograms, sceneUniformsDef.vsm, uniformsForce);
 
-		// Generate mipmap
+		// generate mipmap and set MIN_LOD on texture to 2 for reading 
 		gl.bindTexture(gl.TEXTURE_2D, vsmConfig.tex);
 		gl.generateMipmap(gl.TEXTURE_2D);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_BASE_LEVEL, 2);
 		gl.bindTexture(gl.TEXTURE_2D, null);
 
 		// Unbind framebuffer

@@ -1,5 +1,5 @@
 /*
-	blur.vsh: Gaussian blur vertex shader 
+	copy.vsh: Texture copy vertex shader 
 	author: Noah Krim
 */
 
@@ -9,7 +9,7 @@ attribute vec3 position;
 
 /** Fragment args
 ========================	*/
-varying vec2 	vTexCoords;
+varying vec2 vTexCoords;
 
 void main(void) {
 	// Init bias matrix
