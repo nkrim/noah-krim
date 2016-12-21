@@ -52,16 +52,16 @@
 
 								sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce);
 
-		for(var i=0; i<0; i++) {
-			// Blur shader passes (vertical then horizontal)
-			var blurSigma = 5.0;
+		// Blur shader passes (verticla then horizontal)
+		var blurPasses = [1.0];
+		$.each(blurPasses, function(index, blurSigma) {
 			vsmTex = blurPass(	gl, configs.blur0, 
 								vsmTex, blurSigma, true, 
 								sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce)
 			vsmTex = blurPass(	gl, configs.blur1, 
 								vsmTex, blurSigma, false, 
 								sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce)
-		}
+		});
 
 		// Draw shader pass
 		drawPass(	gl,
@@ -179,6 +179,78 @@
 		return blurConfig.tex;
 	}
 
+	/** Copy config init
+	------------------------	*/
+	function copyInit(gl, resolution) {
+		// Init framebuffer
+		var fbo = gl.createFramebuffer();
+		gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+
+		// Init texture
+		var tex = gl.createTexture();
+		gl.bindTexture(gl.TEXTURE_2D, tex);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, resolution, resolution, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+		gl.generateMipmap(gl.TEXTURE_2D);
+		// Unbind texture
+		gl.bindTexture(gl.TEXTURE_2D, null);
+
+		// Attach texture and renderbuffer to framebuffer
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+		// Unbind framebuffer
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+		// Return config
+		return {
+			res: resolution,
+			tex: tex,
+			fbo: fbo,
+		};
+	}
+	/** Copy shader pass
+	------------------------	*/
+	function copyPass(gl, copyConfig, imgTexture, sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce) {
+		// Switch to shader
+		shaderPrograms.useProgram(gl, 'copy');
+
+		// Set copy uniforms
+		sceneUniformsDef.copy = $.extend({}, sceneUniformsDef.copy, {
+			img_tex: $V([1]),
+		});
+
+		// Bind framebuffer
+		gl.bindFramebuffer(gl.FRAMEBUFFER, copyConfig.fbo);
+
+		// Activate texture
+		gl.activeTexture(gl.TEXTURE1);
+		gl.bindTexture(gl.TEXTURE_2D, imgTexture);
+
+		// Set viewport
+		gl.viewport(0, 0, copyConfig.res, copyConfig.res);
+
+		// Clear buffers
+		var old_clear = gl.getParameter(gl.COLOR_CLEAR_VALUE);
+		gl.clearColor(0.0, 0.0, 0.0, 1.0);
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		gl.clearColor.apply(gl, old_clear);
+
+		// Draw quad
+		drawObjs(gl, sceneObjs, { quad: true }, shaderPrograms, sceneUniformsDef.copy, uniformsForce);
+
+		// Generate mipmap
+		gl.bindTexture(gl.TEXTURE_2D, copyConfig.tex);
+		gl.generateMipmap(gl.TEXTURE_2D);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+
+		// Reset viewport
+		clockgl._viewportToCanvas(gl);
+
+		// Unbind framebuffer
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+		return copyConfig.tex;
+	}
+
 	/** VSM config init
 	--------------------	*/
 	function vsmInit(gl, resolution) {
@@ -228,11 +300,6 @@
 
 		// Bind vsm framebuffer
 		gl.bindFramebuffer(gl.FRAMEBUFFER, vsmConfig.fbo);
-
-		// Set MIN_LOD on texture to 0 for drawing
-		gl.bindTexture(gl.TEXTURE_2D, vsmConfig.tex);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_BASE_LEVEL, 0);
-		gl.bindTexture(gl.TEXTURE_2D, null);
 
 		// Set viewport
 		gl.viewport(0, 0, vsmConfig.res, vsmConfig.res);

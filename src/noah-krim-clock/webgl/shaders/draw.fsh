@@ -74,15 +74,10 @@ float vsmLighting(	sampler2D 	map_tex,
 					float		frag_depth) {
 	vec2 moments = texture2D(map_tex, tex_coords).xy;
 
-	/*float variance = moments.y - moments.x*moments.x;
-	float mD = frag_depth - moments.x;
-	float p = variance / (variance + mD * mD);
-	return min(1.0, max(p, float(frag_depth <= moments.x)));*/
-
 	float p = smoothstep(frag_depth-0.02, frag_depth, moments.x);
 	float variance = max(moments.y - moments.x*moments.x, -0.001);
 	float d = frag_depth - moments.x;
-	float p_max = linstep(0.2, 1.0, variance / (variance + d*d));
+	float p_max = linstep(0.4, 1.0, variance / (variance + d*d));
 	return clamp(max(p, p_max), 0.0, 1.0);
 }
 
@@ -121,14 +116,14 @@ void main(void) {
 			vsmLit = vsmLighting(vsm_tex, vVsmLightCoords.xy, vVsmLightCoords.z);
 
 		// Set fragment color
-		/*gl_FragColor = vec4(clamp(
+		gl_FragColor = vec4(clamp(
 			color * (
 				amb * ambient_col + 
 				vsmLit * dif * diffuse_col + 
 				4.0*clamp(dif, 0.0, 0.25) * spec * specular_col
 			)
-		, 0.0, 1.0), vColor.w);*/
-		gl_FragColor = vec4(vsmLit, texture2D(vsm_tex, vVsmLightCoords.xy).x, vVsmLightCoords.z, 1.0);
+		, 0.0, 1.0), vColor.w);
+		//gl_FragColor = vec4(vsmLit, texture2D(vsm_tex, vVsmLightCoords.xy).x, vVsmLightCoords.z, 1.0);
 	}
 	else {
 		// Set fragment color

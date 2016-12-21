@@ -113,30 +113,33 @@
 					mesh: 'line',
 					color: $V([0.9, 0.9, 0.9, 1.0]),
 					uniforms: {
-						specular_exp: $V([2]),
+						specular_exp: $V([1]),
+						specular_int: $V([0.3]),
 					},
 					world: {
 						//base: new clockgl.World(null, null, null, $V([0, 2, 0])),
-						scale: $V([0.85, 0.95, 0.85]),
+						scale: $V([0.85, 0.95, 0.5]),
+						trans: $V([0.0, 0.0, 1.0]),
 					},
 				},
 				lineShort: {
 					mesh: 'line',
 					color: $V([0.9, 0.9, 0.9, 1.0]),
 					uniforms: {
-						specular_exp: $V([2]),
+						specular_exp: $V([1]),
+						specular_int: $V([0.3]),
 					},
 					world: {
-						scale: $V([0.85, 0.8, 0.85]),
+						scale: $V([0.85, 0.8, 0.5]),
 						rot: Matrix.RotationZ(-clockgl.radians(60)),
-						trans: $V([0.0, 0.0, 5.0]),
+						trans: $V([0.0, 0.0, 6.0]),
 					},
 				},
 				clockFrame: {
 					mesh: 'clockFrame',
 					color: $V([0.9, 0.9, 0.9, 1.0]),
 					uniforms: {
-						specular_exp: $V([2]),
+						specular_exp: $V([4]),
 					},
 					world: {
 						
@@ -182,13 +185,13 @@
 	var lightingDef = {
 		ambient: {
 			ambient_col: $V([1.0, 1.0, 1.0]),
-			ambient_int: $V([0.3]),
+			ambient_int: $V([0.1]),
 		},
 		diffuse: {
 			diffuse_cam: new clockgl.Camera($V([-10,10,10]),$V([0,0,0])), //TEMP
 			diffuse_dir: $V([1.0, -1.0, -1.0]).toUnitVector(),
 			diffuse_col: $V([1.0, 1.0, 1.0]), 
-			diffuse_int: $V([0.4]),
+			diffuse_int: $V([0.7]),
 		},
 		specular: {
 			specular_col: $V([1.0, 1.0, 1.0]),
