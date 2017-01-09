@@ -16,7 +16,7 @@
 	/** Meshes
 	----------------------------	*/
 	var meshesSrcDef = {	// Meshes source definition (key: name, value: {src[, type=Mesh][, uniforms={}][, usage=STATIC_DRAW]})
-		line: {
+		hand: {
 			src: BASE+'/data/LineSmall.obj',
 			uniforms: {
 				lighting_on: clockgl.UNIFORM_TRUE,
@@ -35,7 +35,9 @@
 			},
 		},
 	};
-	var meshesRawDef = {	// Raw definitions for meshes (key: name, value: {init, options, uniforms}) [Raw mesh `init` function: functoin(gl, options, meshUniformsDef)]
+	var meshesRawDef = {	
+		// Raw definitions for meshes (key: name, value: {init, options, uniforms}) 
+		// [Raw mesh `init` function: function(gl, options, meshUniformsDef)]
 		quad: {
 			init: clockgl.rawQuadMesh,
 			options: {
@@ -106,11 +108,11 @@
 				},
 			},
 		},
-		// Sourced
+		/*// Sourced
 		clock0: {
 			models: {
 				lineLong: {
-					mesh: 'line',
+					mesh: 'hand',
 					color: $V([0.9, 0.9, 0.9, 1.0]),
 					uniforms: {
 						specular_exp: $V([1]),
@@ -123,7 +125,7 @@
 					},
 				},
 				lineShort: {
-					mesh: 'line',
+					mesh: 'hand',
 					color: $V([0.9, 0.9, 0.9, 1.0]),
 					uniforms: {
 						specular_exp: $V([1]),
@@ -160,19 +162,25 @@
 			world: {
 				scale: $V([0.1, 0.1, 0.1]),
 			},
-			update: function(timeDiff) {
-				var secondsSpeed = -timeDiff * Math.PI / 500;
-				this.models.lineLong.model.world.rotateZ(secondsSpeed);
-				this.models.lineShort.model.world.rotateZ(secondsSpeed / 6);
-			},
-		},
+		},*/
 	};
-	var drawingObjsDef = ['axes', 'clock0']
+	var drawingObjsDef = ['axes', /^clock\d+L\d+$/];
+	/** Clock Objects
+	----------------------------	*/
+	var clockLayersDef = {
+		// Clock def
+		world: new clockgl.World(null, $V([0.03, 0.03, 0.03])),
+		uniforms: {},
+		// Layers def
+		layers: [1, 6, 12],
+		layerDistance: 9.0,
+		initDistance: 0.0,
+		clockInitAngle: 0.0,
+	};
 	/** View
 	----------------------------	*/
 	var background = $V([0.0, 0.0, 0.0, 1.0]);
 	var fovy = 45;
-	var aspect = 640.0/480.0;
 	var znear = 0.1;
 	var zfar = 500.0;
 	/** Camera initials
@@ -241,7 +249,7 @@
 			},
 		},
 		blur: {
-			vsh: BASE+'/shaders/blur.vsh',
+			vsh: BASE+'/shaders/quad_t.vsh',
 			fsh: BASE+'/shaders/blur.fsh',
 			attributes: ['position'],
 			uniforms: {
@@ -257,8 +265,34 @@
 			},
 		},
 		copy: {
-			vsh: BASE+'/shaders/copy.vsh',
-			fsh: BASE+'/shaders/copy.fsh',
+			vsh: BASE+'/shaders/quad_t.vsh',
+			fsh: BASE+'/shaders/quad_t.fsh',
+			attributes: ['position'],
+			uniforms: {
+				scene: {
+					img_tex: 		{ type: clockgl.UNIFORM.VEC1I, default: $V([0]), },
+				},
+				sceneObj: { },
+				model: { },
+				mesh: { },
+			},
+		},
+		sat: {
+			vsh: BASE+'/shaders/quad.vsh',
+			fsh: BASE+'/shaders/sat.fsh',
+			attributes: ['position'],
+			uniforms: {
+				scene: {
+					img_tex: 		{ type: clockgl.UNIFORM.VEC1I, default: $V([0]), },
+				},
+				sceneObj: { },
+				model: { },
+				mesh: { },
+			},
+		},
+		sat_m: {
+			vsh: BASE+'/shaders/quad.vsh',
+			fsh: BASE+'/shaders/sat_m.fsh',
 			attributes: ['position'],
 			uniforms: {
 				scene: {
@@ -298,6 +332,7 @@
 	----------------------------	*/
 	var canvas;
 	var gl;
+	var aspect;
 	/** Shader programs
 	----------------------------	*/
 	var shaderPrograms;
@@ -357,15 +392,15 @@
 			// Init input handler
 			handler = new clockgl.InputHandler(canvas);
 
+			// Set projection (via resize() function)
+			clockgl.resize();
+
 			// Shaders deferred actions
 			var shaderDeferred = clockgl.loadShaderPrograms(gl, shaderProgramsDef)
 				.then(function(sps) {
 					try {
 						// Set the shaderProgram
 						shaderPrograms = sps;
-
-						// Create projection/modelView matrices
-						projection = makePerspective(fovy, aspect, znear, zfar);
 
 						// Uniforms actions
 						uniformsForce = {scene: {}, sceneObj: {}, model: {}, mesh: {}};
@@ -393,31 +428,16 @@
 						console.log(meshes);
 
 						// Construct models from modelsDef
-						sceneObjs = clockgl.mapObj(sceneObjsDef, function(so) {
-							var models = {};
-							var modelsOptionsDef = {};
-							$.each(so.models || {}, function(name, mo) {
-								var world = mo.world ? 
-												new clockgl.World(mo.world.base, mo.world.scale, mo.world.rotation || mo.world.rot, mo.world.translation || mo.world.trans) 
-												: undefined;
-								models[name] = new clockgl.Model(gl, meshes[mo.mesh], mo.color, world, mo.uniforms, mo.colorUsage);
-								if(mo.options)
-									modelsOptionsDef[name] = mo.options;
-							});
-							var world = so.world ? 
-											new clockgl.World(so.world.base, so.world.scale, so.world.rotation || so.world.rot, so.world.translation || so.world.trans) 
-											: undefined;
-							var obj = new clockgl.SceneObj(models, world, so.optionsLayout, modelsOptionsDef, so.uniforms, so.update);
-							return obj;
-						});
-						console.log(sceneObjs);
+						sceneObjs = initSceneObjs(gl, meshes, sceneObjsDef);
+
+						// Construct clock layers
+						var clocks = initClockObjs(gl, meshes, clockLayersDef);
+						$.extend(sceneObjs, clocks);
 
 						// Find and set drawingObjs array
-						drawingObjs = {};
-						$.each(drawingObjsDef, function(index, name) {
-							if(name in sceneObjs)
-								drawingObjs[name] = true;
-						});
+						drawingObjs = initDrawingObjs(drawingObjsDef, sceneObjs);
+
+						console.log(sceneObjs);
 					}
 					catch (e) {
 						return $.Deferred().reject(e);
@@ -459,8 +479,16 @@
 		}
 	};
 
+
 	/** Public functions
 	====================	*/
+
+	clockgl.resize = function() {
+		if(!canvas)
+			return;
+		var aspect = canvas.width/canvas.height;
+		projection = makePerspective(fovy, aspect, znear, zfar);
+	}
 
 	clockgl.pause = function() {
 		clearInterval(runInterval);
@@ -519,6 +547,7 @@
 		console.log('fps: %d\naverageFps: %d\nframes: %d', fps, averageFps, frames);
 	}
 
+
 	/** Private functions
 	========================	*/
 	clockgl._initUniformsFromContextLayout = function(uniformsContextLayout, uniformsContextDef, uniformsContextForce) {
@@ -550,6 +579,7 @@
 		}
 	}
 
+
 	/** Main helpers
 	================	*/
 	function initWebGL(canvas) {
@@ -559,7 +589,9 @@
 		}
 
 		try {
-			webgl = canvas.getContext('webgl2', contextAttributes) || canvas.getContext('webgl', contextAttributes) || canvas.getContext('experimental-webgl', contextAttributes);
+			webgl =	   canvas.getContext('webgl2', contextAttributes) 
+					|| canvas.getContext('webgl', contextAttributes) 
+					|| canvas.getContext('experimental-webgl', contextAttributes);
 		}
 		catch (e) {}
 
@@ -573,7 +605,7 @@
 
 	function getSceneUniformsDef() {
 		// Init scene uniforms
-		var lightProj = makeOrtho(-20, 20, -20, 20, 0, 30);
+		var lightProj = makeOrtho(-30, 30, -30, 30, 0, 40);
 		var lightView = lightingDef.diffuse.diffuse_cam.modelView();
 		var sceneUniformsDef = {
 			draw: {
@@ -585,6 +617,9 @@
 				specular_half: clockgl.halfAngleDir(camera.lookVector(), lightingDef.diffuse.diffuse_cam.lookVector()).x(-1),
 			},
 			blur: { },
+			copy: { },
+			sat: { },
+			sat_m: { },
 			vsm: {
 				projection: lightProj,
 				modelView: lightView,
@@ -659,6 +694,69 @@
 		}
 	}
 
+	function initSceneObjs(gl, meshes, sceneObjsDef) {
+		return clockgl.mapObj(sceneObjsDef, function(so) {
+			var models = {};
+			var modelsOptionsDef = {};
+
+			$.each(so.models || {}, function(name, mo) {
+				var world = mo.world;
+				if(world && !(world instanceof clockgl.World))
+					world = new clockgl.World(world.base, world.scale, world.rot, world.trans);
+				models[name] = new clockgl.Model(gl, meshes[mo.mesh], mo.color, world, mo.uniforms, mo.colorUsage);
+				if(mo.options)
+					modelsOptionsDef[name] = mo.options;
+			});
+
+			var world = so.world;
+			if(world && !(world instanceof clockgl.World))
+				world = new clockgl.World(world.base, world.scale, world.rot, world.trans);
+			var obj = new clockgl.SceneObj(models, world, so.optionsLayout, modelsOptionsDef, so.uniforms, so.update);
+
+			return obj;
+		});
+	}
+
+	function initDrawingObjs(drawingObjsDef, sceneObjs) {
+		var ret = {};
+		$.each(sceneObjs, function(name) {
+			var found = false;
+			for(var i=0; !found && i<drawingObjsDef.length; i++) {
+				var cur = drawingObjsDef[i];
+				if(typeof(cur) === 'string' || cur instanceof String)
+					found = cur == name;
+				else if(cur instanceof RegExp)
+					found = cur.test(name);
+			}
+			if(found)
+				ret[name] = true;
+		});
+		return ret;
+	}
+
+	function initClockObjs(gl, meshes, clockLayersDef) {
+		// Assign defaults
+		var world = clockLayersDef.world || new clockgl.World();
+		var uniformsDef = clockLayersDef.uniforms || {};
+		var layers = clockLayersDef.layers || [];
+
+		// Construct clocks
+		// args: (gl, meshes.hand, meshes.clockFrame, meshes.clockFace, clockLayersDef.world, clockLayersDef.uniforms)
+		var layers = $.map(clockLayersDef.layers, function(count) {
+			var layer = [];
+			for(var i=0; i<count; i++)
+				layer.push(new clockgl.ClockObj(gl, meshes.hand, meshes.clockFrame, meshes.clockFace, world.clone(), uniformsDef))
+			return [layer];
+		});
+
+		// Arrange in layers
+		return clockgl.initCircularLayers('clock', layers, clockLayersDef.layerDistance, clockLayersDef.initDistance, clockLayersDef.initAngle);
+	}
+
+
+	/** Input handlers
+	====================	*/
+
 	function getInputActionsHold(curTime) {
 		var horizontalSensitivity = clockgl.radians(2);
 		var verticalSensitivity = clockgl.radians(2);
@@ -692,10 +790,10 @@
 				var diffuse = lightingDef.diffuse;
 				diffuse.diffuse_cam.rotateAroundVert(verticalSensitivity);
 			},
-			107 /* + */: function() {
+			187 /* + */: function() {
 				camera.zoom(zoomSensitivity);
 			},
-			109 /* - */: function() {
+			189 /* - */: function() {
 				camera.zoom(-zoomSensitivity);
 			},
 		}

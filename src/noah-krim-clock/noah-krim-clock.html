@@ -14,7 +14,7 @@
 			}
 		</style>
 
-		<canvas id="canvas" tabindex="0" autofocus$="[[autofocusCanvas]]"></canvas>
+		<canvas id="canvas" tabindex="0" height$="[[height]]px" width$="[[width]]px" autofocus$="[[autofocusCanvas]]"></canvas>
 		
 	</template>
 	<script>
@@ -24,12 +24,12 @@
 			properties: {
 				width: {
 					type: Number,
-					value: 640,
+					value: 920,
 				},
 
 				height: {
 					type: Number,
-					value: 480,
+					value: 640,
 				},
 			},
 
@@ -39,7 +39,6 @@
 
 			ready: function() {
 				this.isReady = true;
-				this.setCanvasDimensions();
 			},
 
 			/** 
@@ -49,23 +48,13 @@
 				clockgl.start(this.$.canvas);
 			},
 
-			setCanvasDimensions: function() {
-				var widthpx = this.width+'px';
-				var heightpx = this.height+'px';
-				var canvas = this.$.canvas;
-				canvas.setAttribute('width', widthpx);
-				canvas.setAttribute('height', heightpx);
-				canvas.style.width = widthpx;
-				canvas.style.height = heightpx;
-			},
-
 			/**
 				Observer functions
 			*/
 			_observeDimensions: function(width, height) {
 				if(!this.isReady)
 					return;
-				this.setCanvasDimensions();
+				clockgl.resize();
 			},
 		});
 	</script>

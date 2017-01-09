@@ -5,6 +5,8 @@
 
 (function(clockgl, $, undefined) {
 
+	/** List utils
+	================	*/
 	clockgl.chunk = function(n, arr) {
 		var ret = [];
 		for(var i=0; i<arr.length;) {
@@ -12,11 +14,9 @@
 		}
 		return ret;
 	}
-
 	clockgl.dechunk = function(arr) {
 		return Array.prototype.concat.apply([], arr);
 	}
-
 	clockgl.repeat = function(n, rep) {
 		var ret = [];
 		for(var i=0; i<n; i++) {
@@ -25,6 +25,9 @@
 		return ret;
 	}
 
+
+	/** Obj utils
+	================	*/
 	clockgl.mapObj = function(obj, mapper) {
 		var ret = {};
 		$.each(obj, function(key, val) {
@@ -32,7 +35,6 @@
 		});
 		return ret;
 	}
-
 	clockgl.filterObj = function(obj, filter) {
 		var ret = {};
 		$.each(obj, function(key, val) {
@@ -42,6 +44,14 @@
 		return ret;
 	}
 
+
+	/** Object utils
+	====================	*/
+	
+
+
+	/** Math utils
+	================	*/
 	clockgl.radians = function(degrees) {
 		return degrees * (Math.PI/180.0);
 	}
@@ -49,6 +59,9 @@
 		return radians * (180.0/Math.PI);
 	}
 
+
+	/** LinAlg utils
+	====================	*/
 	clockgl.halfAngleDir = function(v, u) {
 		if(v.isParallelTo(u))
 			return v.toUnitVector();

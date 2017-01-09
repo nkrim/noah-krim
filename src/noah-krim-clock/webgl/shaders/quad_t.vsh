@@ -1,5 +1,5 @@
 /*
-	blur.vsh: Gaussian blur vertex shader 
+	quad_t.vsh: Quad rendering vertex shader w/ texture coords
 	author: Noah Krim
 */
 

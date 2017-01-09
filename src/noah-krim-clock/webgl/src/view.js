@@ -37,10 +37,13 @@
 		/** Config inits
 	 	--------------------	*/
 	 	// Blur config init
-	 	if(!configs.blur0)
+	 	/*if(!configs.blur0)
 	 		configs.blur0 = blurInit(gl, 512);
 	 	if(!configs.blur1)
-	 		configs.blur1 = blurInit(gl, 512);
+	 		configs.blur1 = blurInit(gl, 512);*/
+	 	// SAT config init
+	 	if(!configs.sat)
+	 		console.log(configs.sat = satInit(gl, 512));
 	 	// VSM config init
 	 	if(!configs.vsm)
 	 		configs.vsm = vsmInit(gl, 512);
@@ -53,15 +56,19 @@
 								sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce);
 
 		// Blur shader passes (verticla then horizontal)
-		var blurPasses = [1.0];
+		/*var blurPasses = [1.0];
 		$.each(blurPasses, function(index, blurSigma) {
 			vsmTex = blurPass(	gl, configs.blur0, 
 								vsmTex, blurSigma, true, 
-								sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce)
+								sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce);
 			vsmTex = blurPass(	gl, configs.blur1, 
 								vsmTex, blurSigma, false, 
-								sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce)
-		});
+								sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce);
+		});*/
+
+		satTex = satPass(	gl, configs.sat,
+							vsmTex, 
+							sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce);
 
 		// Draw shader pass
 		drawPass(	gl,
@@ -251,6 +258,102 @@
 		return copyConfig.tex;
 	}
 
+	/** SAT config init
+	------------------------	*/
+	function satInit(gl, resolution) {
+		// Shader names to use for passes
+		var shaderNames = ['sat', 'sat_m'];
+
+		return $.map(shaderNames, function(name) {
+			// Init framebuffer
+			var fbo = gl.createFramebuffer();
+			gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+
+			// Init texture
+			var tex = gl.createTexture();
+			gl.bindTexture(gl.TEXTURE_2D, tex);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, resolution, resolution, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+			gl.generateMipmap(gl.TEXTURE_2D);
+			// Unbind texture
+			gl.bindTexture(gl.TEXTURE_2D, null);
+
+			// Attach texture and renderbuffer to framebuffer
+			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+			// Unbind framebuffer
+			gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+			// Push pass config onto return array
+			return {
+				shader: name,
+				res: resolution,
+				tex: tex,
+				fbo: fbo,
+			};
+		});
+	}
+	/** SAT shader pass
+	------------------------	*/
+	function satPass(gl, satConfig, imgTexture, sceneObjs, drawingObjs, options, shaderPrograms, sceneUniformsDef, uniformsForce) {
+		// Set copy uniforms
+		sceneUniformsDef.sat = $.extend({}, sceneUniformsDef.sat, {
+			img_tex: $V([1]),
+		});
+		sceneUniformsDef.sat_m = $.extend({}, sceneUniformsDef.sat_m, {
+			img_tex: $V([1]),
+		});
+
+		// Set and save color buffer params
+		var old_clear = gl.getParameter(gl.COLOR_CLEAR_VALUE);
+		gl.clearColor(0.0, 0.0, 0.0, 0.0);
+
+		// Use input texture as source
+		var prevTex = imgTexture;
+
+		// Do sat passes
+		for(var i=0; i<2; i++) {
+			$.each(satConfig, function(index, config) {
+				// Switch to shader
+				shaderPrograms.useProgram(gl, config.shader);
+
+				// Bind framebuffer
+				gl.bindFramebuffer(gl.FRAMEBUFFER, config.fbo);
+
+				// Activate texture
+				gl.activeTexture(gl.TEXTURE1);
+				gl.bindTexture(gl.TEXTURE_2D, prevTex);
+
+				// Set viewport
+				gl.viewport(0, 0, config.res, config.res);
+
+				// Clear buffers
+				gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+				// Draw quad
+				drawObjs(gl, sceneObjs, { quad: true }, shaderPrograms, sceneUniformsDef[config.shader], uniformsForce);
+
+				// Generate mipmap
+				gl.bindTexture(gl.TEXTURE_2D, config.tex);
+				gl.generateMipmap(gl.TEXTURE_2D);
+				gl.bindTexture(gl.TEXTURE_2D, null);
+
+				// Unbind framebuffer
+				gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+				// Set texture for next pass
+				prevTex = config.tex;
+			});
+		}
+
+		// Restore clear color
+		gl.clearColor.apply(gl, old_clear);
+
+		// Reset viewport
+		clockgl._viewportToCanvas(gl);
+
+		return prevTex;
+	}
+
 	/** VSM config init
 	--------------------	*/
 	function vsmInit(gl, resolution) {
@@ -316,7 +419,6 @@
 		// generate mipmap and set MIN_LOD on texture to 2 for reading 
 		gl.bindTexture(gl.TEXTURE_2D, vsmConfig.tex);
 		gl.generateMipmap(gl.TEXTURE_2D);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_BASE_LEVEL, 2);
 		gl.bindTexture(gl.TEXTURE_2D, null);
 
 		// Unbind framebuffer

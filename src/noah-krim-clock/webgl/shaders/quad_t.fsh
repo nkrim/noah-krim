@@ -1,5 +1,5 @@
 /*
-	copy.fsh: Texture copy fragment shader 
+	quad_t.fsh: Quad rendering fragment shader w/ texture coords
 	author: Noah Krim
 */
 
@@ -8,9 +8,9 @@ precision lowp int;
 
 /** Values from vertex shader
 ================================	*/
-varying vec2 vTexCoords;	// Texture coords for img_tex
+varying vec2 	vTexCoords;	// Texture coords for img_tex
 
-/** Kernal uniforms
+/** Texture uniforms
 ================================	*/
 uniform sampler2D	img_tex;
 

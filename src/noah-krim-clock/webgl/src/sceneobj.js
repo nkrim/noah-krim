@@ -10,14 +10,16 @@
 	var SceneObj = function(models, world, modelOptionsLayout, modelOptionsDef, sceneObjUniformsDef, updateFunc) {
 		// Assign defaults
 		models = models || {};
-		world = world || new clockgl.World;
+		world = world || new clockgl.World();
 		modelOptionsDef = modelOptionsDef || {};
 		modelOptionsLayout = modelOptionsLayout || {};
+
 		// Add define options definition
 		modelOptionsLayout = $.extend({
 			hide: false,
 			sceneWorld: true,
 		}, modelOptionsLayout);
+
 		// Create models dictionary with options
 		this.models = clockgl.mapObj(models, function(model, name) {
 			return $.extend({model: model}, modelOptionsLayout, modelOptionsDef[name] || {});
@@ -32,7 +34,6 @@
 		// Set updateFunc
 		this.updateFunc = updateFunc || function() {};
 	}
-
 
 	/* Abstract methods
 	--------------------	*/
@@ -68,6 +69,9 @@
 		}).bind(this));
 	}
 
+
+	/** Option methods
+	--------------------	*/
 	SceneObj.prototype.show = function(gl, modelName) {
 		$.each(this.models, function(name, model) {
 			model.hide = false;
